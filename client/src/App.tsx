@@ -9,6 +9,8 @@ import Explore from "@/pages/explore";
 import Settings from "@/pages/settings";
 import Notifications from "@/pages/notifications";
 import Bookmarks from "@/pages/bookmarks";
+import Messages from "@/pages/messages";
+import Create from "@/pages/create";
 
 function Router() {
   return (
@@ -18,6 +20,8 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/notifications" component={Notifications} />
       <Route path="/bookmarks" component={Bookmarks} />
+      <Route path="/messages" component={Messages} />
+      <Route path="/create" component={Create} />
       <Route component={NotFound} />
     </Switch>
   );

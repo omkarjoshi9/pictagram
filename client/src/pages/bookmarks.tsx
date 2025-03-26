@@ -1,18 +1,18 @@
 import React, { useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
-import { posts } from "../data/PostData";
+import { posts, Post } from "../data/PostData";
 import PostCard from "../components/PostCard";
 import PostDetailModal from "../components/PostDetailModal";
 
 export default function Bookmarks() {
-  const [selectedPost, setSelectedPost] = useState(null);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // For demo purposes, let's use some of the posts as bookmarked posts
   const bookmarkedPosts = posts.slice(0, 3);
 
-  const handlePostClick = (post) => {
+  const handlePostClick = (post: Post) => {
     setSelectedPost(post);
     setIsModalOpen(true);
   };
