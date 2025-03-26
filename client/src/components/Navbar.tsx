@@ -8,6 +8,7 @@ import { RiQuestionFill } from "react-icons/ri";
 import { userData } from "@/data/UserData";
 import { motion } from "framer-motion";
 import { useClickOutside } from "@mantine/hooks";
+import { ThemeToggle } from "./ThemeToggle";
 
 const Navbar = () => {
   const [isFocused, setIsFocused] = useState(false);
@@ -44,7 +45,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-white border-b border-border">
+      <nav className="sticky top-0 z-50 bg-background border-b border-border">
         <div className="px-4 py-2 mx-auto flex items-center justify-between max-w-6xl">
           <Link href="/" className="text-2xl font-bold text-primary">
             InSocial
@@ -133,6 +134,7 @@ const Navbar = () => {
                 Create
               </a>
             </Link>
+            <ThemeToggle />
             <div className="userProfile ml-4 relative">
               <div
                 className="h-8 w-8 rounded-full overflow-hidden cursor-pointer"
@@ -162,7 +164,7 @@ const Navbar = () => {
                       className="h-10 w-10 rounded-full object-cover"
                     />
                     <div className="ml-3">
-                      <div className="text-sm font-medium">John Doe</div>
+                      <div className="text-sm font-medium">Omkar Joshi</div>
                       <span className="text-xs text-primary cursor-pointer">See Profile</span>
                     </div>
                   </div>
