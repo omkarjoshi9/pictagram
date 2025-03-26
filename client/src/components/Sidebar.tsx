@@ -35,8 +35,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage }) => {
             className="h-10 w-10 rounded-full object-cover"
           />
           <div className="ml-3">
-            <p className="text-sm font-medium text-dark">John Doe</p>
-            <p className="text-xs text-muted">@johndoe</p>
+            <p className="text-sm font-medium">Omkar Joshi</p>
+            <p className="text-xs text-muted">@omkarjoshi</p>
           </div>
         </div>
         
@@ -49,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage }) => {
                 activePage === item.name ? "text-primary" : "text-muted"
               }`} />
               <span className={`text-sm font-medium ${
-                activePage === item.name ? "text-primary" : "text-dark"
+                activePage === item.name ? "text-primary" : ""
               }`}>
                 {item.label}
               </span>

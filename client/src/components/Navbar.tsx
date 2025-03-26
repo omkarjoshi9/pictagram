@@ -87,7 +87,7 @@ const Navbar = () => {
             </div>
 
             <motion.div
-              className="absolute w-full bg-white mt-2 rounded-lg shadow-lg z-50 overflow-hidden"
+              className="absolute w-full bg-background mt-2 rounded-lg shadow-lg z-50 overflow-hidden"
               initial={{ y: 30, opacity: 0, pointerEvents: "none" }}
               animate={{
                 y: isFocused ? 0 : 30,
@@ -147,7 +147,7 @@ const Navbar = () => {
                 />
               </div>
               <motion.div
-                className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 overflow-hidden"
+                className="absolute right-0 mt-2 w-64 bg-background rounded-lg shadow-lg z-50 overflow-hidden"
                 initial={{ y: 40, opacity: 0, pointerEvents: "none" }}
                 animate={{
                   y: !profileMenu ? 40 : 0,
@@ -204,7 +204,7 @@ const Navbar = () => {
       </nav>
 
       <motion.div
-        className="fixed inset-0 bg-white z-50"
+        className="fixed inset-0 bg-background z-50"
         initial={{ y: "100vh", pointerEvents: "none", display: "none" }}
         animate={{
           display: searchPanel ? "block" : "none",

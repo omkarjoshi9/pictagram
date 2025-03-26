@@ -23,7 +23,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose
           onClick={onClose}
         >
           <motion.div
-            className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto"
+            className="bg-background rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -108,7 +108,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose
                     <input 
                       type="text" 
                       placeholder="Add a comment..." 
-                      className="w-full text-sm border-none focus:ring-0 focus:outline-none"
+                      className="w-full text-sm border-none focus:ring-0 focus:outline-none bg-transparent"
                     />
                     <button className="ml-2 text-primary font-medium text-sm">Post</button>
                   </div>
