@@ -24,7 +24,7 @@ import {
 export default function Support() {
   const [contactSubmitted, setContactSubmitted] = useState(false);
 
-  const handleContactSubmit = (e) => {
+  const handleContactSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     // In a real app, this would send the form data to a server
     setContactSubmitted(true);
@@ -33,7 +33,7 @@ export default function Support() {
     setTimeout(() => {
       setContactSubmitted(false);
       // Reset the form
-      e.target.reset();
+      e.currentTarget.reset();
     }, 3000);
   };
 
