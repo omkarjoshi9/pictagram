@@ -41,10 +41,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage }) => {
         </div>
         
         {navItems.map((item) => (
-          <Link key={item.name} href={item.path}>
-            <a className={`flex items-center px-3 py-2 rounded-md ${
+          <Link 
+            key={item.name} 
+            href={item.path}
+            className={`flex items-center px-3 py-2 rounded-md ${
               activePage === item.name ? "bg-pink-light" : "hover:bg-secondary"
-            }`}>
+            }`}
+          >
               <item.icon className={`h-5 w-5 mr-3 ${
                 activePage === item.name ? "text-primary" : "text-muted"
               }`} />
@@ -53,15 +56,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage }) => {
               }`}>
                 {item.label}
               </span>
-            </a>
           </Link>
         ))}
       </div>
       
-      <Link href="/create">
-        <a className="block mt-6 w-full py-2 bg-primary text-white rounded-full text-sm font-medium text-center">
-          Create Post
-        </a>
+      <Link 
+        href="/create" 
+        className="block mt-6 w-full py-2 bg-primary text-white rounded-full text-sm font-medium text-center"
+      >
+        Create Post
       </Link>
     </div>
   );

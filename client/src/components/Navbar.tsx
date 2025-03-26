@@ -129,10 +129,8 @@ const Navbar = () => {
             <div className="block md:hidden cursor-pointer mr-3" onClick={() => setSearchPanel(true)}>
               <MdSearch className="h-6 w-6 text-muted" />
             </div>
-            <Link href="/create">
-              <a className="hidden md:block px-5 py-1.5 bg-primary text-white rounded-full text-sm font-medium">
-                Create
-              </a>
+            <Link href="/create" className="hidden md:block px-5 py-1.5 bg-primary text-white rounded-full text-sm font-medium">
+              Create
             </Link>
             <ThemeToggle />
             <div className="userProfile ml-4 relative">
