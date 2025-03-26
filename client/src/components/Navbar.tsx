@@ -48,7 +48,7 @@ const Navbar = () => {
       <nav className="sticky top-0 z-50 bg-background border-b border-border">
         <div className="px-4 py-2 mx-auto flex items-center justify-between max-w-6xl">
           <Link href="/" className="text-2xl font-bold text-primary">
-            InSocial
+            PICTagram
           </Link>
           
           <div
@@ -155,45 +155,49 @@ const Navbar = () => {
                 transition={{ duration: 0.2 }}
               >
                 <div className="p-3 border-b border-border">
-                  <div className="flex items-center">
+                  <Link href="/profile" className="flex items-center" onClick={() => setProfileMenu(false)}>
                     <img
                       src="/assets/image/avatar_default.jpg"
                       alt="User Profile"
                       className="h-10 w-10 rounded-full object-cover"
                     />
                     <div className="ml-3">
-                      <div className="text-sm font-medium">Omkar Joshi</div>
+                      <div className="text-sm font-medium text-foreground">Omkar Joshi</div>
                       <span className="text-xs text-primary cursor-pointer">See Profile</span>
                     </div>
-                  </div>
+                  </Link>
                 </div>
                 <div className="py-2">
-                  <div className="px-3 py-2 hover:bg-secondary cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <span className="mr-3 text-muted">
-                          <MdSettings className="h-5 w-5" />
+                  <Link href="/settings" className="block w-full" onClick={() => setProfileMenu(false)}>
+                    <div className="px-3 py-2 hover:bg-secondary cursor-pointer">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <span className="mr-3 text-muted">
+                            <MdSettings className="h-5 w-5" />
+                          </span>
+                          <span className="text-sm text-foreground">Settings & Privacy</span>
+                        </div>
+                        <span className="text-muted">
+                          <FaAngleRight className="h-4 w-4" />
                         </span>
-                        <span className="text-sm">Settings & Privacy</span>
                       </div>
-                      <span className="text-muted">
-                        <FaAngleRight className="h-4 w-4" />
-                      </span>
                     </div>
-                  </div>
-                  <div className="px-3 py-2 hover:bg-secondary cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <span className="mr-3 text-muted">
-                          <RiQuestionFill className="h-5 w-5" />
+                  </Link>
+                  <Link href="/support" className="block w-full" onClick={() => setProfileMenu(false)}>
+                    <div className="px-3 py-2 hover:bg-secondary cursor-pointer">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <span className="mr-3 text-muted">
+                            <RiQuestionFill className="h-5 w-5" />
+                          </span>
+                          <span className="text-sm text-foreground">Help & Support</span>
+                        </div>
+                        <span className="text-muted">
+                          <FaAngleRight className="h-4 w-4" />
                         </span>
-                        <span className="text-sm">Help & Support</span>
                       </div>
-                      <span className="text-muted">
-                        <FaAngleRight className="h-4 w-4" />
-                      </span>
                     </div>
-                  </div>
+                  </Link>
                 </div>
               </motion.div>
             </div>

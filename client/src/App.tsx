@@ -11,6 +11,8 @@ import Notifications from "@/pages/notifications";
 import Bookmarks from "@/pages/bookmarks";
 import Messages from "@/pages/messages";
 import Create from "@/pages/create";
+import Profile from "@/pages/profile";
+import Support from "@/pages/support";
 
 function Router() {
   return (
@@ -22,6 +24,8 @@ function Router() {
       <Route path="/bookmarks" component={Bookmarks} />
       <Route path="/messages" component={Messages} />
       <Route path="/create" component={Create} />
+      <Route path="/profile" component={Profile} />
+      <Route path="/support" component={Support} />
       <Route component={NotFound} />
     </Switch>
   );
