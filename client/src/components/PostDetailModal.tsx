@@ -46,16 +46,16 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose
                     className="h-10 w-10 rounded-full object-cover"
                   />
                   <div className="ml-3">
-                    <p className="text-sm font-medium">{post.user.name}</p>
-                    <p className="text-xs text-muted">{post.feeling}</p>
+                    <p className="text-sm font-medium text-foreground">{post.user.name}</p>
+                    <p className="text-xs text-muted-foreground">{post.feeling}</p>
                   </div>
-                  <button className="ml-auto text-muted">
+                  <button className="ml-auto text-muted-foreground hover:text-foreground transition-colors">
                     <FaEllipsisH />
                   </button>
                 </div>
                 
                 <div className="py-4 flex-grow overflow-y-auto">
-                  <p className="text-sm">{post.caption}</p>
+                  <p className="text-sm text-foreground">{post.caption}</p>
                   
                   <div className="mt-6 space-y-4 max-h-64 overflow-y-auto">
                     {post.comments.map((comment, index) => (
@@ -66,14 +66,14 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose
                           className="h-8 w-8 rounded-full object-cover mr-2"
                         />
                         <div>
-                          <p className="text-xs font-medium">{comment.user.name}</p>
-                          <p className="text-xs">{comment.text}</p>
-                          <div className="flex items-center mt-1 text-xs text-muted">
+                          <p className="text-xs font-medium text-foreground">{comment.user.name}</p>
+                          <p className="text-xs text-foreground">{comment.text}</p>
+                          <div className="flex items-center mt-1 text-xs text-muted-foreground">
                             <span>{comment.timeAgo}</span>
                             <span className="mx-1">·</span>
-                            <button className="font-medium">Like</button>
+                            <button className="font-medium hover:text-primary">Like</button>
                             <span className="mx-1">·</span>
-                            <button className="font-medium">Reply</button>
+                            <button className="font-medium hover:text-primary">Reply</button>
                           </div>
                         </div>
                       </div>
@@ -84,17 +84,17 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose
                 <div className="pt-3 border-t border-border">
                   <div className="flex justify-between mb-3">
                     <div className="flex space-x-4">
-                      <button className="flex items-center text-muted hover:text-primary">
+                      <button className="flex items-center text-muted-foreground hover:text-primary transition-colors">
                         <HiOutlineHeart className="h-6 w-6" />
                       </button>
-                      <button className="flex items-center text-muted hover:text-primary">
+                      <button className="flex items-center text-muted-foreground hover:text-primary transition-colors">
                         <HiOutlineChatBubbleOvalLeft className="h-6 w-6" />
                       </button>
-                      <button className="flex items-center text-muted hover:text-primary">
+                      <button className="flex items-center text-muted-foreground hover:text-primary transition-colors">
                         <HiOutlineShare className="h-6 w-6" />
                       </button>
                     </div>
-                    <button className="flex items-center text-muted hover:text-primary">
+                    <button className="flex items-center text-muted-foreground hover:text-primary transition-colors">
                       <HiOutlineBookmark className="h-6 w-6" />
                     </button>
                   </div>
@@ -105,12 +105,14 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose
                       alt="Your profile" 
                       className="h-8 w-8 rounded-full object-cover mr-2"
                     />
-                    <input 
-                      type="text" 
-                      placeholder="Add a comment..." 
-                      className="w-full text-sm border-none focus:ring-0 focus:outline-none bg-transparent"
-                    />
-                    <button className="ml-2 text-primary font-medium text-sm">Post</button>
+                    <div className="flex-1 relative">
+                      <input 
+                        type="text" 
+                        placeholder="Add a comment..." 
+                        className="w-full text-sm py-2 px-3 border border-border rounded-full focus:ring-1 focus:ring-primary focus:outline-none bg-secondary text-foreground"
+                      />
+                    </div>
+                    <button className="ml-2 text-primary font-medium text-sm hover:text-primary/80 transition-colors">Post</button>
                   </div>
                 </div>
               </div>

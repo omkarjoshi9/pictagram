@@ -24,7 +24,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
           <button
             key={category}
             className={`relative px-4 py-2 text-sm font-medium ${
-              activeCategory === category ? "text-primary" : "text-muted"
+              activeCategory === category ? "text-primary" : "text-muted-foreground"
             }`}
             onClick={() => setActiveCategory(category)}
           >
