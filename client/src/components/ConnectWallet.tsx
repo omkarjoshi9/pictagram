@@ -47,7 +47,10 @@ const ConnectWallet: React.FC = () => {
             <Button variant="outline" size="sm" className="border-primary text-primary flex items-center gap-2">
               {user && (
                 <Avatar className="h-6 w-6">
-                  <AvatarImage src={user.profilePic} alt={user.username} />
+                  <AvatarImage 
+                    src={user.profilePic || "/default-avatar.svg"} 
+                    alt={user.username} 
+                  />
                   <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
                 </Avatar>
               )}
@@ -58,11 +61,20 @@ const ConnectWallet: React.FC = () => {
             {user && (
               <>
                 <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.username}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {shortenAddress(account)}
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage 
+                        src={user.profilePic || "/default-avatar.svg"} 
+                        alt={user.username} 
+                      />
+                      <AvatarFallback>{getInitials(user.username)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{user.username}</p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {shortenAddress(account)}
+                      </p>
+                    </div>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

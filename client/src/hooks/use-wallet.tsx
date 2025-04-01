@@ -55,6 +55,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       
       if (response.ok) {
         const userData = await response.json();
+        // Ensure user has a profilePic, use default if not provided
+        if (!userData.profilePic) {
+          userData.profilePic = "/default-avatar.svg";
+        }
         setUser(userData);
       } else {
         console.error("Failed to save wallet address to database");

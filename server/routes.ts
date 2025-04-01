@@ -126,6 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             username,
             password: `pw_${Date.now()}`, // generate a random password
             walletAddress,
+            profilePic: "/default-avatar.svg", // set default profile picture
           });
         }
         
