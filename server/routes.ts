@@ -14,12 +14,8 @@ import type {
   ConversationParticipant
 } from "@shared/schema";
 
-// Extend WebSocket type to include isAlive property
-declare module 'ws' {
-  interface WebSocket {
-    isAlive?: boolean;
-  }
-}
+// We'll use a standard Map to track active WebSocket connections
+// instead of extending the WebSocket interface
 
 import { 
   insertUserSchema, 
@@ -470,35 +466,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Store active clients and their metadata
   const clients = new Map();
   
-  // Set up a heartbeat interval to detect dead connections
-  const HEARTBEAT_INTERVAL = 30000; // 30 seconds
-  const heartbeatInterval = setInterval(() => {
-    let activeConnections = 0;
+  // Log active connections every 30 seconds
+  const loggingInterval = setInterval(() => {
+    const activeConnections = Array.from(wss.clients).filter(
+      client => client.readyState === WebSocket.OPEN
+    ).length;
     
-    wss.clients.forEach((ws) => {
-      if (ws.isAlive === false) {
-        log("Terminating inactive connection", "ws");
-        return ws.terminate();
-      }
-      
-      ws.isAlive = false;
-      activeConnections++;
-      
-      try {
-        ws.ping();
-      } catch (err) {
-        // Handle ping error by terminating connection
-        log("Error sending ping, terminating connection", "ws");
-        ws.terminate();
-      }
-    });
-    
-    log(`Active WebSocket connections: ${activeConnections}`, "ws");
-  }, HEARTBEAT_INTERVAL);
+    if (activeConnections > 0) {
+      log(`Active WebSocket connections: ${activeConnections}`, "ws");
+    }
+  }, 30000);
   
   // Clean up interval on server close
   wss.on('close', () => {
-    clearInterval(heartbeatInterval);
+    clearInterval(loggingInterval);
     log("WebSocket server closed", "ws");
   });
 
@@ -515,9 +496,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       lastActive: new Date()
     });
     
-    // Mark connection as alive
-    ws.isAlive = true;
-    
     log(`WebSocket client #${id} connected from ${ipAddress}`, "ws");
 
     // Send a welcome message to confirm connection
@@ -526,16 +504,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("Error sending welcome message:", err);
     }
-    
-    // Handle pong responses to keep connection alive
-    ws.on('pong', () => {
-      ws.isAlive = true;
-      const clientInfo = clients.get(ws);
-      if (clientInfo) {
-        clientInfo.lastActive = new Date();
-        clients.set(ws, clientInfo);
-      }
-    });
     
     // Handle client ping messages (different from server pings)
     const handlePing = () => {
