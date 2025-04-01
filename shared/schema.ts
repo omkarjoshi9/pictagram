@@ -6,9 +6,14 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email"),
   walletAddress: text("wallet_address").unique(),
   profilePic: text("profile_pic").default("/default-avatar.png"),
   bio: text("bio"),
+  isPrivate: boolean("is_private").default(false),
+  showActivityStatus: boolean("show_activity_status").default(true),
+  pushNotifications: boolean("push_notifications").default(true),
+  emailNotifications: boolean("email_notifications").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -77,9 +82,14 @@ export const bookmarks = pgTable("bookmarks", {
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
+  email: true,
   walletAddress: true,
   profilePic: true,
   bio: true,
+  isPrivate: true,
+  showActivityStatus: true,
+  pushNotifications: true,
+  emailNotifications: true,
 });
 
 export const insertPostSchema = createInsertSchema(posts).pick({

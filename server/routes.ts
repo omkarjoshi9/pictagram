@@ -111,6 +111,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     })
   );
+  
+  // Schema for password change request
+  const changePasswordSchema = z.object({
+    currentPassword: z.string().min(6),
+    newPassword: z.string().min(6)
+  });
+  
+  // Change password endpoint
+  app.post(
+    "/api/users/:id/change-password",
+    asyncHandler(async (req, res) => {
+      const id = parseInt(req.params.id);
+      try {
+        const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+        
+        // Get the user to verify current password
+        const user = await storage.getUser(id);
+        if (!user) {
+          return res.status(404).json({ error: "User not found" });
+        }
+        
+        // Check if the current password is correct
+        if (user.password !== currentPassword) {
+          return res.status(400).json({ error: "Current password is incorrect" });
+        }
+        
+        // Update with the new password
+        const updatedUser = await storage.updateUser(id, { password: newPassword });
+        
+        if (!updatedUser) {
+          return res.status(500).json({ error: "Failed to update password" });
+        }
+        
+        res.json({ success: true, message: "Password changed successfully" });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ error: error.errors });
+        }
+        throw error;
+      }
+    })
+  );
+  
+  // Get user profile endpoint
+  app.get(
+    "/api/users/:id",
+    asyncHandler(async (req, res) => {
+      const id = parseInt(req.params.id);
+      const user = await storage.getUser(id);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Don't return password in response
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    })
+  );
 
   // Wallet auth route
   app.post(
