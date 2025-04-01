@@ -1,16 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import { useLocation } from "wouter";
+import { useWallet } from "@/hooks/use-wallet";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Create() {
   const [, setLocation] = useLocation();
+  const { user } = useWallet();
+  const { toast } = useToast();
   const [caption, setCaption] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [previewURL, setPreviewURL] = useState<string | null>(null);
   const [feeling, setFeeling] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Available categories
   const availableCategories = [
@@ -21,6 +27,18 @@ export default function Create() {
   const availableFeelings = [
     "Happy", "Excited", "Loved", "Relaxed", "Blessed", "Thoughtful", "Inspired"
   ];
+
+  // Redirect to login if no user is logged in
+  useEffect(() => {
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "You must be logged in to create a post.",
+        variant: "destructive"
+      });
+      setLocation("/");
+    }
+  }, [user, setLocation, toast]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,15 +60,56 @@ export default function Create() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
     
-    // Simulate API call
-    setTimeout(() => {
-      // Redirect to home after "posting"
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "You must be logged in to create a post.",
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    
+    try {
+      // Create post data
+      const postData = {
+        userId: user.id,
+        imageUrl: previewURL,
+        caption,
+        feeling,
+        categories
+      };
+      
+      // Send post data to API
+      const response = await apiRequest({
+        url: "/api/posts",
+        method: "POST",
+        data: postData
+      });
+      
+      toast({
+        title: "Success",
+        description: "Your post has been created!",
+        variant: "default"
+      });
+      
+      // Redirect to home after posting
       setLocation("/");
-    }, 1500);
+    } catch (err) {
+      console.error("Error creating post:", err);
+      setError("Failed to create post. Please try again.");
+      toast({
+        title: "Error",
+        description: "Failed to create post. Please try again.",
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
+    }
   };
 
   return (
