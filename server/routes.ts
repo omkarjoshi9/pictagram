@@ -1,8 +1,9 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 import { log } from "./vite";
 import { storage } from "./storage";
+import { checkDatabaseConnection } from "./db";
 import { insertUserSchema, insertPostSchema, insertCommentSchema, insertCategorySchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -16,6 +17,17 @@ function asyncHandler(
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint
+  app.get("/api/health", asyncHandler(async (req, res) => {
+    // Check database connection
+    const dbStatus = await checkDatabaseConnection();
+    
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      database: dbStatus
+    });
+  }));
   // User routes
   app.get(
     "/api/users/:id",
@@ -275,9 +287,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up WebSocket server for real-time updates
   const httpServer = createServer(app);
   
-  // Use more robust WebSocket server configuration
+  // Use more robust WebSocket server configuration with a dedicated path
+  // This prevents conflicts with Vite's HMR WebSocket
   const wss = new WebSocketServer({ 
     server: httpServer,
+    path: '/ws',  // Use dedicated WebSocket path
     perMessageDeflate: false,  // Disable per-message deflate to avoid some compatibility issues
     maxPayload: 1024 * 1024,   // 1MB max message size
     skipUTF8Validation: false  // Always validate UTF8
@@ -302,7 +316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (data.type === "like") {
           // Broadcast like event to all clients
           wss.clients.forEach((client) => {
-            if (client !== ws && client.readyState === 1) {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
               try {
                 client.send(JSON.stringify({ 
                   type: "like", 
@@ -317,7 +331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (data.type === "new_comment") {
           // Broadcast new comment event to all clients
           wss.clients.forEach((client) => {
-            if (client !== ws && client.readyState === 1) {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
               try {
                 client.send(JSON.stringify({ 
                   type: "new_comment", 

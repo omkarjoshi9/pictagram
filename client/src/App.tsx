@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { WalletProvider } from "@/hooks/use-wallet";
+import { WebSocketProvider } from "@/components/WebSocketProvider";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Explore from "@/pages/explore";
@@ -37,8 +38,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <WalletProvider>
-          <Router />
-          <Toaster />
+          <WebSocketProvider>
+            <Router />
+            <Toaster />
+          </WebSocketProvider>
         </WalletProvider>
       </ThemeProvider>
     </QueryClientProvider>
