@@ -8,6 +8,7 @@ import {
   HiOutlineBookmark, 
   HiOutlineCog 
 } from "react-icons/hi";
+import { useWallet } from "../hooks/use-wallet";
 
 interface SidebarProps {
   activePage: string;
@@ -15,6 +16,13 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activePage }) => {
   const [location] = useLocation();
+  const { account, user } = useWallet();
+
+  // Function to truncate wallet address for display
+  const truncateAddress = (address: string) => {
+    if (!address) return "";
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
 
   const navItems = [
     { name: "home", path: "/", icon: HiOutlineHome, label: "Home" },
@@ -30,13 +38,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage }) => {
       <div className="space-y-1">
         <div className="flex items-center mb-6">
           <img 
-            src="/assets/image/avatar_default.jpg"
+            src={user?.profilePic || "/default-avatar.png"}
             alt="Profile" 
             className="h-10 w-10 rounded-full object-cover"
           />
           <div className="ml-3">
-            <p className="text-sm font-medium text-foreground">Omkar Joshi</p>
-            <p className="text-xs text-muted-foreground">@omkarjoshi</p>
+            <p className="text-sm font-medium text-foreground">
+              {user?.username || truncateAddress(account || "")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {account ? truncateAddress(account) : "Not connected"}
+            </p>
           </div>
         </div>
         
