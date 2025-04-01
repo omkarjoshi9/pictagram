@@ -40,6 +40,26 @@ export const postCategories = pgTable("post_categories", {
   categoryId: integer("category_id").notNull().references(() => categories.id),
 });
 
+export const conversations = pgTable("conversations", {
+  id: serial("id").primaryKey(),
+  lastMessageAt: timestamp("last_message_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const conversationParticipants = pgTable("conversation_participants", {
+  conversationId: integer("conversation_id").notNull().references(() => conversations.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+});
+
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id").notNull().references(() => conversations.id),
+  senderId: integer("sender_id").notNull().references(() => users.id),
+  text: text("text").notNull(),
+  read: boolean("read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -65,6 +85,19 @@ export const insertCategorySchema = createInsertSchema(categories).pick({
   name: true,
 });
 
+export const insertConversationSchema = createInsertSchema(conversations);
+
+export const insertConversationParticipantSchema = createInsertSchema(conversationParticipants).pick({
+  conversationId: true,
+  userId: true,
+});
+
+export const insertMessageSchema = createInsertSchema(messages).pick({
+  conversationId: true,
+  senderId: true,
+  text: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -76,3 +109,12 @@ export type Comment = typeof comments.$inferSelect;
 
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type Category = typeof categories.$inferSelect;
+
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
+export type Conversation = typeof conversations.$inferSelect;
+
+export type InsertConversationParticipant = z.infer<typeof insertConversationParticipantSchema>;
+export type ConversationParticipant = typeof conversationParticipants.$inferSelect;
+
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type Message = typeof messages.$inferSelect;

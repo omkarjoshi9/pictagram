@@ -4,7 +4,25 @@ import { WebSocketServer, WebSocket } from "ws";
 import { log } from "./vite";
 import { storage } from "./storage";
 import { checkDatabaseConnection } from "./db";
-import { insertUserSchema, insertPostSchema, insertCommentSchema, insertCategorySchema } from "@shared/schema";
+import type { 
+  User,
+  Message,
+  Post,
+  Comment,
+  Category,
+  Conversation,
+  ConversationParticipant
+} from "@shared/schema";
+
+import { 
+  insertUserSchema, 
+  insertPostSchema, 
+  insertCommentSchema, 
+  insertCategorySchema,
+  insertConversationSchema,
+  insertConversationParticipantSchema,
+  insertMessageSchema
+} from "@shared/schema";
 import { z } from "zod";
 
 // Middleware to handle async route functions
@@ -283,6 +301,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(categories);
     })
   );
+  
+  // Message and conversation routes
+  app.get(
+    "/api/conversations",
+    asyncHandler(async (req, res) => {
+      const userId = parseInt(req.query.userId as string);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      const conversations = await storage.getConversationsByUserId(userId);
+      res.json(conversations);
+    })
+  );
+  
+  app.get(
+    "/api/conversations/:id",
+    asyncHandler(async (req, res) => {
+      const id = parseInt(req.params.id);
+      const conversation = await storage.getConversation(id);
+      
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+      
+      res.json(conversation);
+    })
+  );
+  
+  app.get(
+    "/api/conversations/:conversationId/participants",
+    asyncHandler(async (req, res) => {
+      const conversationId = parseInt(req.params.conversationId);
+      
+      // Get all participants of the conversation
+      const participants = await storage.getConversationParticipants(conversationId);
+      
+      // Get user details for each participant
+      const participantUsers = await Promise.all(
+        participants.map(async (participant: ConversationParticipant) => {
+          const user = await storage.getUser(participant.userId);
+          if (user) {
+            // Don't return password in response
+            const { password, ...userWithoutPassword } = user;
+            return userWithoutPassword;
+          }
+          return null;
+        })
+      );
+      
+      // Filter out null values (users not found)
+      const validUsers = participantUsers.filter((user: Partial<User> | null) => user !== null);
+      
+      res.json(validUsers);
+    })
+  );
+  
+  app.post(
+    "/api/conversations",
+    asyncHandler(async (req, res) => {
+      try {
+        const { user1Id, user2Id } = req.body;
+        
+        if (!user1Id || !user2Id) {
+          return res.status(400).json({ error: "Both user IDs are required" });
+        }
+        
+        // Check if conversation already exists between these users
+        const existingConversation = await storage.getConversationByUsers(user1Id, user2Id);
+        
+        if (existingConversation) {
+          return res.json(existingConversation);
+        }
+        
+        // Create new conversation
+        const conversation = await storage.createConversation();
+        
+        // Add participants
+        await storage.addConversationParticipant({ 
+          conversationId: conversation.id, 
+          userId: user1Id 
+        });
+        
+        await storage.addConversationParticipant({ 
+          conversationId: conversation.id, 
+          userId: user2Id 
+        });
+        
+        res.status(201).json(conversation);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ error: error.errors });
+        }
+        throw error;
+      }
+    })
+  );
+  
+  app.get(
+    "/api/conversations/:conversationId/messages",
+    asyncHandler(async (req, res) => {
+      const conversationId = parseInt(req.params.conversationId);
+      const messages = await storage.getMessagesByConversation(conversationId);
+      res.json(messages);
+    })
+  );
+  
+  app.post(
+    "/api/messages",
+    asyncHandler(async (req, res) => {
+      try {
+        const messageData = insertMessageSchema.parse(req.body);
+        const message = await storage.createMessage(messageData);
+        
+        // Update conversation last message time
+        await storage.updateConversationLastMessageTime(messageData.conversationId);
+        
+        res.status(201).json(message);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ error: error.errors });
+        }
+        throw error;
+      }
+    })
+  );
+  
+  app.patch(
+    "/api/messages/:id/read",
+    asyncHandler(async (req, res) => {
+      const id = parseInt(req.params.id);
+      const message = await storage.markMessageAsRead(id);
+      
+      if (!message) {
+        return res.status(404).json({ error: "Message not found" });
+      }
+      
+      res.json(message);
+    })
+  );
 
   // Set up WebSocket server for real-time updates
   const httpServer = createServer(app);
@@ -343,6 +501,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
           });
+        } else if (data.type === "new_message") {
+          // Handle new message event
+          const { message: messageData, recipientId } = data;
+          
+          // Broadcast message only to the recipient
+          wss.clients.forEach((client) => {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+              try {
+                client.send(JSON.stringify({ 
+                  type: "new_message", 
+                  message: messageData 
+                }));
+              } catch (err) {
+                console.error("Error broadcasting message event:", err);
+              }
+            }
+          });
+          
+          // Store message in database
+          if (messageData && messageData.conversationId && messageData.senderId && messageData.text) {
+            storage.createMessage({
+              conversationId: messageData.conversationId,
+              senderId: messageData.senderId,
+              text: messageData.text
+            }).then((savedMessage: Message) => {
+              // Update last message time
+              return storage.updateConversationLastMessageTime(messageData.conversationId);
+            }).catch((error: Error) => {
+              console.error("Error saving message:", error);
+            });
+          }
+        } else if (data.type === "message_read") {
+          // Handle message read event
+          const { messageId } = data;
+          
+          if (messageId) {
+            storage.markMessageAsRead(messageId).then((updatedMessage: Message | undefined) => {
+              if (updatedMessage) {
+                // Broadcast message read status to all clients
+                wss.clients.forEach((client) => {
+                  if (client !== ws && client.readyState === WebSocket.OPEN) {
+                    try {
+                      client.send(JSON.stringify({ 
+                        type: "message_read", 
+                        messageId 
+                      }));
+                    } catch (err) {
+                      console.error("Error broadcasting message read event:", err);
+                    }
+                  }
+                });
+              }
+            }).catch((error: Error) => {
+              console.error("Error marking message as read:", error);
+            });
+          }
         }
       } catch (error) {
         log(`Invalid message: ${error}`, "ws");
