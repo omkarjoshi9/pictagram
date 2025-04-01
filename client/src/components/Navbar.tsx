@@ -9,6 +9,7 @@ import { userData } from "@/data/UserData";
 import { motion } from "framer-motion";
 import { useClickOutside } from "@mantine/hooks";
 import { ThemeToggle } from "./ThemeToggle";
+import ConnectWallet from "./ConnectWallet";
 
 const Navbar = () => {
   const [isFocused, setIsFocused] = useState(false);
@@ -129,7 +130,10 @@ const Navbar = () => {
             <div className="block md:hidden cursor-pointer mr-3" onClick={() => setSearchPanel(true)}>
               <MdSearch className="h-6 w-6 text-muted" />
             </div>
-            <Link href="/create" className="hidden md:block px-5 py-1.5 bg-primary text-white rounded-full text-sm font-medium">
+            <div className="hidden md:block mr-3">
+              <ConnectWallet />
+            </div>
+            <Link href="/create" className="hidden md:block px-5 py-1.5 bg-primary text-white rounded-full text-sm font-medium mr-3">
               Create
             </Link>
             <ThemeToggle />
