@@ -4,7 +4,9 @@ import Sidebar from "../components/Sidebar";
 import { Post as PostType, Comment } from "../data/PostData";
 import PostCard from "../components/PostCard";
 import PostDetailModal from "../components/PostDetailModal";
+import EditProfileModal from "../components/EditProfileModal";
 import { FaCircleUser, FaChartLine, FaUserPlus, FaEllipsis } from "react-icons/fa6";
+import { FiEdit } from "react-icons/fi";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "../hooks/use-wallet";
 import type { Post as DbPost } from "@shared/schema";
@@ -14,6 +16,7 @@ import { useToast } from "../hooks/use-toast";
 export default function Profile() {
   const [selectedPost, setSelectedPost] = useState<PostType | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("posts");
   const { user } = useWallet();
   const { toast } = useToast();
@@ -116,7 +119,11 @@ export default function Profile() {
                     {user?.username || "Loading..."}
                   </h1>
                   <div className="flex space-x-2">
-                    <button className="px-4 py-1.5 bg-primary text-white rounded-full text-sm font-medium">
+                    <button 
+                      className="px-4 py-1.5 bg-primary text-white rounded-full text-sm font-medium flex items-center"
+                      onClick={() => setIsEditProfileOpen(true)}
+                    >
+                      <FiEdit className="mr-1.5 h-3.5 w-3.5" />
                       Edit Profile
                     </button>
                     <button className="p-2 border border-border rounded-full">
@@ -238,6 +245,17 @@ export default function Profile() {
           onDelete={handleDeletePost}
         />
       )}
+      
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        user={user}
+        isOpen={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+        onSuccess={() => {
+          // Refresh user data
+          queryClient.invalidateQueries({ queryKey: ["user"] });
+        }}
+      />
     </div>
   );
 }
