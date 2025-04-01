@@ -35,8 +35,8 @@ export function useWebSocket(
   const reconnectTimerRef = useRef<number | null>(null);
 
   const {
-    reconnectInterval = 5000,
-    reconnectAttempts = 10,
+    reconnectInterval = 2000, // Reduced interval for faster reconnection
+    reconnectAttempts = 15,   // Increased attempts
     onOpen,
     onClose,
     onMessage,
@@ -49,14 +49,23 @@ export function useWebSocket(
     try {
       // Clean up existing connection if any
       if (websocketRef.current) {
-        websocketRef.current.close();
+        // Only close if it's not already closing or closed
+        if (websocketRef.current.readyState !== WebSocket.CLOSING && 
+            websocketRef.current.readyState !== WebSocket.CLOSED) {
+          websocketRef.current.close();
+        }
       }
 
       // Determine protocol based on current connection (ws or wss)
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws`;
       
-      setConnectionStatus('connecting');
+      // Don't change status if we're already reconnecting
+      if (connectionStatus !== 'reconnecting') {
+        setConnectionStatus('connecting');
+      }
+      
+      // Create new websocket connection
       websocketRef.current = new WebSocket(wsUrl);
       
       websocketRef.current.onopen = (event) => {
@@ -64,6 +73,13 @@ export function useWebSocket(
         setReadyState(WebSocket.OPEN);
         setConnectionStatus('open');
         reconnectCount.current = 0;
+        
+        // Send a ping message to confirm connection
+        try {
+          websocketRef.current?.send(JSON.stringify({ type: 'ping' }));
+        } catch (e) {
+          // Ignore error if connection dropped
+        }
         
         if (onOpen) {
           onOpen(event);
@@ -73,28 +89,42 @@ export function useWebSocket(
       websocketRef.current.onclose = (event) => {
         console.log(`WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason}`);
         setReadyState(WebSocket.CLOSED);
-        setConnectionStatus('closed');
+        
+        // Only change status if we're not already reconnecting
+        if (connectionStatus !== 'reconnecting') {
+          setConnectionStatus('closed');
+        }
         
         if (onClose) {
           onClose(event);
         }
         
-        // Attempt to reconnect unless this was a normal closure or max attempts reached
-        if (event.code !== 1000 && event.code !== 1001) {
+        // Check if we should attempt to reconnect
+        // Don't reconnect if this was a normal closure, max attempts reached, or browser is offline
+        if (event.code !== 1000 && event.code !== 1001 && navigator.onLine) {
           if (reconnectCount.current < reconnectAttempts) {
             reconnectCount.current += 1;
             setConnectionStatus('reconnecting');
             console.log(`Attempting to reconnect (${reconnectCount.current}/${reconnectAttempts})...`);
             
+            // Clear any existing reconnect timer
             if (reconnectTimerRef.current !== null) {
               window.clearTimeout(reconnectTimerRef.current);
             }
             
+            // Use exponential backoff for reconnection (max 10 seconds)
+            const backoffTime = Math.min(reconnectInterval * Math.pow(1.5, reconnectCount.current - 1), 10000);
+            
             reconnectTimerRef.current = window.setTimeout(() => {
               connectWebSocket();
-            }, reconnectInterval);
+            }, backoffTime);
           } else {
             console.error(`WebSocket failed to connect after ${reconnectAttempts} attempts`);
+            // Reset reconnect count after a longer timeout to try again
+            window.setTimeout(() => {
+              reconnectCount.current = 0;
+              connectWebSocket();
+            }, 30000);
           }
         }
       };
