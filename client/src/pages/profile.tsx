@@ -5,15 +5,19 @@ import { Post as PostType, Comment } from "../data/PostData";
 import PostCard from "../components/PostCard";
 import PostDetailModal from "../components/PostDetailModal";
 import { FaCircleUser, FaChartLine, FaUserPlus, FaEllipsis } from "react-icons/fa6";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "../hooks/use-wallet";
 import type { Post as DbPost } from "@shared/schema";
+import { apiRequest } from "../lib/queryClient";
+import { useToast } from "../hooks/use-toast";
 
 export default function Profile() {
   const [selectedPost, setSelectedPost] = useState<PostType | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("posts");
   const { user } = useWallet();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   // Fetch posts from API for the current user
   const { data: dbPosts = [], isLoading } = useQuery({
@@ -27,6 +31,33 @@ export default function Profile() {
       return response.json();
     },
     enabled: !!user?.id
+  });
+  
+  // Delete post mutation
+  const deletePostMutation = useMutation({
+    mutationFn: async (postId: number) => {
+      const response = await apiRequest({
+        url: `/api/posts/${postId}`,
+        method: "DELETE"
+      });
+      return response;
+    },
+    onSuccess: () => {
+      // Invalidate query to refetch posts
+      queryClient.invalidateQueries({ queryKey: ["posts", "user", user?.id] });
+      toast({
+        title: "Success",
+        description: "Post has been deleted successfully",
+        variant: "default"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete post. Please try again.",
+        variant: "destructive"
+      });
+    }
   });
 
   // Convert database posts to UI-compatible format
@@ -48,6 +79,11 @@ export default function Profile() {
   const handlePostClick = (post: PostType) => {
     setSelectedPost(post);
     setIsModalOpen(true);
+  };
+  
+  // Handler for deleting a post
+  const handleDeletePost = async (postId: number) => {
+    return deletePostMutation.mutateAsync(postId);
   };
 
   const stats = {
@@ -199,6 +235,7 @@ export default function Profile() {
           post={selectedPost}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
+          onDelete={handleDeletePost}
         />
       )}
     </div>

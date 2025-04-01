@@ -1,17 +1,57 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { HiOutlineHeart, HiOutlineShare } from "react-icons/hi";
+import { HiOutlineHeart, HiOutlineShare, HiOutlineTrash } from "react-icons/hi";
 import { HiOutlineBookmark, HiOutlineChatBubbleOvalLeft } from "react-icons/hi2";
-import { Post } from "@/data/PostData";
+import { Post } from "../data/PostData";
 import { FaEllipsisH } from "react-icons/fa";
+import { useWallet } from "../hooks/use-wallet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 
 interface PostDetailModalProps {
   post: Post;
   isOpen: boolean;
   onClose: () => void;
+  onDelete?: (postId: number) => Promise<void>;
 }
 
-const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose }) => {
+const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose, onDelete }) => {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { user } = useWallet();
+
+  // Check if current user is the post owner
+  const isOwner = user?.id === post.user.id;
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      await onDelete(post.id);
+      onClose();
+    } catch (error) {
+      console.error("Failed to delete post:", error);
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -49,9 +89,25 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose
                     <p className="text-sm font-medium text-foreground">{post.user.name}</p>
                     <p className="text-xs text-muted-foreground">{post.feeling}</p>
                   </div>
-                  <button className="ml-auto text-muted-foreground hover:text-foreground transition-colors">
-                    <FaEllipsisH />
-                  </button>
+                  
+                  {isOwner && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="ml-auto text-muted-foreground hover:text-foreground transition-colors">
+                          <FaEllipsisH />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          className="text-destructive focus:text-destructive cursor-pointer"
+                          onClick={() => setIsDeleteDialogOpen(true)}
+                        >
+                          <HiOutlineTrash className="mr-2 h-4 w-4" />
+                          Delete Post
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
                 
                 <div className="py-4 flex-grow overflow-y-auto">
@@ -120,6 +176,28 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose
           </motion.div>
         </motion.div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your post from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AnimatePresence>
   );
 };
