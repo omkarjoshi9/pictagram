@@ -1,12 +1,23 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { ethers } from "ethers";
 
+import { useToast } from "@/hooks/use-toast";
+
+interface User {
+  id: number;
+  username: string;
+  walletAddress: string;
+  profilePic?: string;
+  bio?: string;
+}
+
 interface WalletContextProps {
   account: string | null;
   chainId: number | null;
   provider: ethers.providers.Web3Provider | null;
   isConnecting: boolean;
   error: string | null;
+  user: User | null;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
 }
@@ -17,6 +28,7 @@ const WalletContext = createContext<WalletContextProps>({
   provider: null,
   isConnecting: false,
   error: null,
+  user: null,
   connectWallet: async () => {},
   disconnectWallet: () => {},
 });
@@ -27,6 +39,35 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [provider, setProvider] = useState<ethers.providers.Web3Provider | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const { toast } = useToast();
+
+  // Save user to database
+  const saveUserToDatabase = async (address: string) => {
+    try {
+      const response = await fetch("/api/auth/wallet", {
+        method: "POST",
+        body: JSON.stringify({ walletAddress: address }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        console.error("Failed to save wallet address to database");
+        toast({
+          title: "Error",
+          description: "Failed to save wallet address. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Error saving wallet address:", err);
+    }
+  };
 
   // Check if user is already connected on initial load
   useEffect(() => {
@@ -35,9 +76,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         if (window.ethereum && window.ethereum.selectedAddress) {
           const ethersProvider = new ethers.providers.Web3Provider(window.ethereum);
           const network = await ethersProvider.getNetwork();
+          
           setProvider(ethersProvider);
           setAccount(window.ethereum.selectedAddress);
           setChainId(network.chainId);
+          
+          // Save to database
+          await saveUserToDatabase(window.ethereum.selectedAddress);
         }
       } catch (err) {
         console.error("Failed to check wallet connection:", err);
@@ -51,14 +96,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!window.ethereum) return;
 
-    const handleAccountsChanged = (accounts: string[]) => {
+    const handleAccountsChanged = async (accounts: string[]) => {
       if (accounts.length === 0) {
         // User disconnected their wallet
         setAccount(null);
         setChainId(null);
         setProvider(null);
+        setUser(null);
       } else {
         setAccount(accounts[0]);
+        // Save new account to database
+        await saveUserToDatabase(accounts[0]);
       }
     };
 
@@ -104,9 +152,22 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setProvider(ethersProvider);
       setAccount(accounts[0]);
       setChainId(network.chainId);
+      
+      // Save wallet address to database
+      await saveUserToDatabase(accounts[0]);
+      
+      toast({
+        title: "Wallet Connected",
+        description: "Your wallet has been successfully connected.",
+      });
     } catch (err: any) {
       console.error("Error connecting wallet:", err);
       setError(err.message || "Failed to connect wallet");
+      toast({
+        title: "Connection Failed",
+        description: err.message || "Failed to connect wallet. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsConnecting(false);
     }
@@ -116,7 +177,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setAccount(null);
     setChainId(null);
     setProvider(null);
+    setUser(null);
     setError(null);
+    
+    toast({
+      title: "Wallet Disconnected",
+      description: "Your wallet has been disconnected.",
+    });
   };
 
   return (
@@ -127,6 +194,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         provider,
         isConnecting,
         error,
+        user,
         connectWallet,
         disconnectWallet,
       }}
