@@ -6,137 +6,10 @@ import { useToast } from "../hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/queryClient";
 
-// Change password modal component
-function ChangePasswordModal({ isOpen, onClose, userId }: { isOpen: boolean; onClose: () => void; userId: number }) {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
-  const { toast } = useToast();
-  
-  const changePasswordMutation = useMutation({
-    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
-      return apiRequest({
-        url: `/api/users/${userId}/change-password`,
-        method: "POST",
-        data
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Password changed successfully",
-        variant: "success",
-      });
-      onClose();
-      // Reset form
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setError("");
-    },
-    onError: (err: any) => {
-      setError(err.response?.data?.error || "Failed to change password");
-      toast({
-        title: "Error",
-        description: err.response?.data?.error || "Failed to change password",
-        variant: "destructive",
-      });
-    }
-  });
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    
-    if (newPassword !== confirmPassword) {
-      setError("New passwords don't match");
-      return;
-    }
-    
-    if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-    
-    changePasswordMutation.mutate({
-      currentPassword,
-      newPassword
-    });
-  };
-  
-  if (!isOpen) return null;
-  
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-card rounded-lg shadow-lg p-6 w-full max-w-md">
-        <h3 className="text-xl font-bold mb-4">Change Password</h3>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="text-red-500 text-sm">{error}</div>}
-          
-          <div>
-            <label className="block text-sm font-medium mb-1">Current Password</label>
-            <input 
-              type="password" 
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              required
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1">New Password</label>
-            <input 
-              type="password" 
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              required
-              minLength={6}
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1">Confirm New Password</label>
-            <input 
-              type="password" 
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              required
-              minLength={6}
-            />
-          </div>
-          
-          <div className="flex justify-end space-x-2 pt-2">
-            <button 
-              type="button" 
-              onClick={onClose}
-              className="px-4 py-2 border border-border rounded-md"
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className="px-4 py-2 bg-primary text-white rounded-md"
-              disabled={changePasswordMutation.isPending}
-            >
-              {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 export default function Settings() {
   const { user, account } = useWallet();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   
   // Form state
   const [username, setUsername] = useState("");
@@ -168,7 +41,6 @@ export default function Settings() {
       toast({
         title: "Success",
         description: "Settings updated successfully",
-        variant: "success",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/users', user?.id] });
     },
@@ -309,13 +181,7 @@ export default function Settings() {
                     </label>
                   </div>
                   <div className="pt-2">
-                    <button 
-                      type="button"
-                      onClick={() => setIsChangePasswordModalOpen(true)}
-                      className="text-sm text-primary font-medium"
-                    >
-                      Change Password
-                    </button>
+                    <p className="text-xs text-muted-foreground">Authentication is handled by your MetaMask wallet</p>
                   </div>
                 </div>
               </div>
@@ -365,15 +231,6 @@ export default function Settings() {
           </div>
         </div>
       </div>
-      
-      {/* Change Password Modal */}
-      {user && (
-        <ChangePasswordModal 
-          isOpen={isChangePasswordModalOpen} 
-          onClose={() => setIsChangePasswordModalOpen(false)}
-          userId={user.id}
-        />
-      )}
     </div>
   );
 }
