@@ -1,10 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { HiOutlineHeart, HiOutlineShare, HiOutlineTrash } from "react-icons/hi";
-import { HiOutlineBookmark, HiOutlineChatBubbleOvalLeft } from "react-icons/hi2";
+import { HiOutlineHeart, HiOutlineShare, HiOutlineTrash, HiHeart } from "react-icons/hi";
+import { HiOutlineBookmark, HiOutlineChatBubbleOvalLeft, HiBookmark } from "react-icons/hi2";
 import { Post } from "../data/PostData";
 import { FaEllipsisH } from "react-icons/fa";
 import { useWallet } from "../hooks/use-wallet";
+import { useToast } from "../hooks/use-toast";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { apiRequest } from "../lib/queryClient";
+import { useWebSocketContext } from "./WebSocketProvider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +25,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
+import { Button } from "../components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../components/ui/tooltip";
 
 interface PostDetailModalProps {
   post: Post;
@@ -32,10 +43,280 @@ interface PostDetailModalProps {
 const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose, onDelete }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [comment, setComment] = useState('');
+  const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [likesCount, setLikesCount] = useState(post.likes);
+  const [postComments, setPostComments] = useState(post.comments);
+  const commentInputRef = useRef<HTMLInputElement>(null);
   const { user } = useWallet();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Check if current user is the post owner
   const isOwner = user?.id === post.user.id;
+  
+  // Focus on comment input when comment button is clicked
+  const focusCommentInput = () => {
+    if (commentInputRef.current) {
+      commentInputRef.current.focus();
+    }
+  };
+  
+  // WebSocket connection
+  const { sendMessage } = useWebSocketContext();
+
+  // Get like status
+  const likeStatusQuery = useQuery({
+    queryKey: ["postLike", post.id, user?.id],
+    queryFn: async () => {
+      if (!user?.id) return { liked: false };
+      
+      const response = await apiRequest({
+        url: `/api/posts/${post.id}/like?userId=${user.id}`,
+        method: "GET"
+      });
+      
+      return response;
+    },
+    enabled: !!user?.id && isOpen,
+    refetchOnWindowFocus: false
+  });
+
+  // Get bookmark status
+  const bookmarkStatusQuery = useQuery({
+    queryKey: ["postBookmark", post.id, user?.id],
+    queryFn: async () => {
+      if (!user?.id) return { bookmarked: false };
+      
+      const response = await apiRequest({
+        url: `/api/posts/${post.id}/bookmark?userId=${user.id}`,
+        method: "GET"
+      });
+      
+      return response;
+    },
+    enabled: !!user?.id && isOpen,
+    refetchOnWindowFocus: false
+  });
+  
+  // Update liked and saved state when the queries load
+  useEffect(() => {
+    if (likeStatusQuery.data) {
+      setLiked(likeStatusQuery.data.liked);
+    }
+    
+    if (bookmarkStatusQuery.data) {
+      setSaved(bookmarkStatusQuery.data.bookmarked);
+    }
+  }, [likeStatusQuery.data, bookmarkStatusQuery.data]);
+  
+  // Like mutation
+  const likeMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error("You must be logged in to like a post");
+      
+      const response = await apiRequest({
+        url: `/api/posts/${post.id}/like`,
+        method: "POST",
+        data: { userId: user.id }
+      });
+      
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["postLike", post.id, user?.id] });
+      
+      // Update local state with the response
+      setLiked(data.liked);
+      if (data.post) {
+        setLikesCount(data.post.likes);
+      }
+      
+      // Notify other clients via WebSocket
+      sendMessage({
+        type: "like",
+        postId: post.id,
+        userId: user?.id,
+        likes: likesCount + (data.liked ? 1 : -1)
+      });
+    },
+    onError: (error: any) => {
+      // Revert UI if failed
+      setLiked(!liked);
+      setLikesCount(liked ? likesCount - 1 : likesCount + 1);
+      
+      toast({
+        title: "Error",
+        description: error.message || "Failed to like post",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Comment mutation
+  const commentMutation = useMutation({
+    mutationFn: async (text: string) => {
+      if (!user?.id) throw new Error("You must be logged in to comment");
+      if (!text.trim()) throw new Error("Comment cannot be empty");
+      
+      const response = await apiRequest({
+        url: `/api/comments`,
+        method: "POST",
+        data: { text, userId: user.id, postId: post.id }
+      });
+      
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["comments", post.id] });
+      
+      // Add new comment to the list
+      const newComment = {
+        user: {
+          id: user?.id || 0,
+          name: user?.username || "",
+          profilePic: user?.profilePic || "/default-avatar.svg"
+        },
+        text: comment,
+        timeAgo: "Just now"
+      };
+      
+      setPostComments([...postComments, newComment]);
+      setComment("");
+      
+      // Notify other clients via WebSocket
+      sendMessage({
+        type: "new_comment",
+        postId: post.id,
+        comment: newComment
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to post comment",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Save/bookmark mutation
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error("You must be logged in to save a post");
+      
+      const response = await apiRequest({
+        url: `/api/posts/${post.id}/bookmark`,
+        method: "POST",
+        data: { userId: user.id }
+      });
+      
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["posts", "saved"] });
+      queryClient.invalidateQueries({ queryKey: ["postBookmark", post.id, user?.id] });
+      
+      // Update local state with the response
+      setSaved(data.bookmarked);
+      
+      // Notify other clients via WebSocket
+      sendMessage({
+        type: "bookmark",
+        postId: post.id,
+        userId: user?.id,
+        bookmarked: data.bookmarked
+      });
+    },
+    onError: (error: any) => {
+      // Revert UI if failed
+      setSaved(!saved);
+      
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save post",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Share functionality
+  const handleShare = () => {
+    // For now, just copy the URL to clipboard
+    // In a real app, this would open a share modal with more options
+    try {
+      const shareText = `Check out this post by ${post.user.name}: ${window.location.origin}/posts/${post.id}`;
+      navigator.clipboard.writeText(shareText);
+      toast({
+        title: "Link copied!",
+        description: "Post link copied to clipboard",
+        variant: "default"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy link. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Toggle like
+  const handleLike = () => {
+    if (!user) {
+      toast({
+        title: "Not logged in",
+        description: "Please log in to like posts",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setLiked(!liked);
+    setLikesCount(liked ? likesCount - 1 : likesCount + 1);
+    likeMutation.mutate();
+  };
+  
+  // Toggle save
+  const handleSave = () => {
+    if (!user) {
+      toast({
+        title: "Not logged in",
+        description: "Please log in to save posts",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setSaved(!saved);
+    saveMutation.mutate();
+  };
+  
+  // Post comment
+  const handlePostComment = () => {
+    if (!user) {
+      toast({
+        title: "Not logged in",
+        description: "Please log in to comment",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!comment.trim()) {
+      toast({
+        title: "Empty comment",
+        description: "Comment cannot be empty",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    commentMutation.mutate(comment);
+  };
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -115,7 +396,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose
                     <p className="text-sm text-foreground">{post.caption}</p>
                     
                     <div className="mt-6 space-y-4 max-h-64 overflow-y-auto">
-                      {post.comments.map((comment, index) => (
+                      {postComments.map((comment, index) => (
                         <div className="flex" key={index}>
                           <img 
                             src={comment.user.profilePic}
@@ -135,41 +416,123 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isOpen, onClose
                           </div>
                         </div>
                       ))}
+                      
+                      {postComments.length === 0 && (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-muted-foreground">No comments yet</p>
+                          <p className="text-xs text-muted-foreground mt-1">Be the first to comment!</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
                   <div className="pt-3 border-t border-border">
                     <div className="flex justify-between mb-3">
                       <div className="flex space-x-4">
-                        <button className="flex items-center text-muted-foreground hover:text-primary transition-colors">
-                          <HiOutlineHeart className="h-6 w-6" />
-                        </button>
-                        <button className="flex items-center text-muted-foreground hover:text-primary transition-colors">
-                          <HiOutlineChatBubbleOvalLeft className="h-6 w-6" />
-                        </button>
-                        <button className="flex items-center text-muted-foreground hover:text-primary transition-colors">
-                          <HiOutlineShare className="h-6 w-6" />
-                        </button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button 
+                                onClick={handleLike}
+                                className={`flex items-center ${liked ? 'text-red-500' : 'text-muted-foreground hover:text-primary'} transition-colors`}
+                                disabled={likeMutation.isPending}
+                              >
+                                {liked ? 
+                                  <HiHeart className="h-6 w-6" /> : 
+                                  <HiOutlineHeart className="h-6 w-6" />
+                                }
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{liked ? 'Unlike' : 'Like'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button 
+                                onClick={focusCommentInput}
+                                className="flex items-center text-muted-foreground hover:text-primary transition-colors"
+                              >
+                                <HiOutlineChatBubbleOvalLeft className="h-6 w-6" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Comment</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button 
+                                onClick={handleShare}
+                                className="flex items-center text-muted-foreground hover:text-primary transition-colors"
+                              >
+                                <HiOutlineShare className="h-6 w-6" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Share</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
-                      <button className="flex items-center text-muted-foreground hover:text-primary transition-colors">
-                        <HiOutlineBookmark className="h-6 w-6" />
-                      </button>
+                      
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button 
+                              onClick={handleSave}
+                              className={`flex items-center ${saved ? 'text-primary' : 'text-muted-foreground hover:text-primary'} transition-colors`}
+                              disabled={saveMutation.isPending}
+                            >
+                              {saved ? 
+                                <HiBookmark className="h-6 w-6" /> : 
+                                <HiOutlineBookmark className="h-6 w-6" />
+                              }
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{saved ? 'Unsave' : 'Save'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    
+                    <div className="text-sm font-medium mb-2">
+                      {likesCount > 0 && (
+                        <p>{likesCount} {likesCount === 1 ? 'like' : 'likes'}</p>
+                      )}
                     </div>
                     
                     <div className="mt-2 flex items-center">
                       <img 
-                        src="/assets/image/avatar_default.jpg"
-                        alt="Your profile" 
+                        src={user?.profilePic || "/default-avatar.svg"} 
+                        alt={user?.username || "Your profile"} 
                         className="h-8 w-8 rounded-full object-cover mr-2"
                       />
                       <div className="flex-1 relative">
                         <input 
+                          ref={commentInputRef}
                           type="text" 
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
                           placeholder="Add a comment..." 
                           className="w-full text-sm py-2 px-3 border border-border rounded-full focus:ring-1 focus:ring-primary focus:outline-none bg-secondary text-foreground"
+                          onKeyPress={(e) => e.key === 'Enter' && handlePostComment()}
                         />
                       </div>
-                      <button className="ml-2 text-primary font-medium text-sm hover:text-primary/80 transition-colors">Post</button>
+                      <button 
+                        onClick={handlePostComment}
+                        disabled={commentMutation.isPending || !comment.trim()}
+                        className="ml-2 text-primary font-medium text-sm hover:text-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {commentMutation.isPending ? 'Posting...' : 'Post'}
+                      </button>
                     </div>
                   </div>
                 </div>

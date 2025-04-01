@@ -60,6 +60,20 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const postLikes = pgTable("post_likes", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().references(() => posts.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const bookmarks = pgTable("bookmarks", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().references(() => posts.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -98,6 +112,16 @@ export const insertMessageSchema = createInsertSchema(messages).pick({
   text: true,
 });
 
+export const insertPostLikeSchema = createInsertSchema(postLikes).pick({
+  postId: true,
+  userId: true,
+});
+
+export const insertBookmarkSchema = createInsertSchema(bookmarks).pick({
+  postId: true,
+  userId: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -118,3 +142,9 @@ export type ConversationParticipant = typeof conversationParticipants.$inferSele
 
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
+
+export type InsertPostLike = z.infer<typeof insertPostLikeSchema>;
+export type PostLike = typeof postLikes.$inferSelect;
+
+export type InsertBookmark = z.infer<typeof insertBookmarkSchema>;
+export type Bookmark = typeof bookmarks.$inferSelect;

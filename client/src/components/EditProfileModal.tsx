@@ -1,29 +1,36 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { z } from "zod";
+import React from "react";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from "../components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from "../components/ui/form";
-import { Input } from "../components/ui/input";
-import { Button } from "../components/ui/button";
-import { Textarea } from "../components/ui/textarea";
+
+// Form validation schema
+const formSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters").max(30, "Username cannot exceed 30 characters"),
+  profilePic: z.string().url("Please enter a valid URL").or(z.string().length(0)),
+  bio: z.string().max(160, "Bio cannot exceed 160 characters").optional()
+});
 
 interface User {
   id: number;
@@ -40,27 +47,19 @@ interface EditProfileModalProps {
   onSuccess: () => void;
 }
 
-// Create a schema for validating the form
-const formSchema = z.object({
-  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
-  bio: z.string().max(160, { message: "Bio must be less than 160 characters" }).optional(),
-  profilePic: z.string().url({ message: "Please enter a valid URL" }).optional(),
-});
-
 type FormValues = z.infer<typeof formSchema>;
 
-const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen, onClose, onSuccess }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: EditProfileModalProps) {
   const { toast } = useToast();
 
-  // Initialize form with user data
+  // Create form with default values from user
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       username: user?.username || "",
-      bio: user?.bio || "",
       profilePic: user?.profilePic || "",
-    },
+      bio: user?.bio || ""
+    }
   });
 
   // Update form values when user changes
@@ -68,61 +67,52 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen, onClo
     if (user) {
       form.reset({
         username: user.username || "",
-        bio: user.bio || "",
         profilePic: user.profilePic || "",
+        bio: user.bio || ""
       });
     }
   }, [user, form]);
 
-  const onSubmit = async (values: FormValues) => {
-    if (!user) return;
-    
-    try {
-      setIsSubmitting(true);
+  // Mutation for updating profile
+  const updateProfileMutation = useMutation({
+    mutationFn: async (values: FormValues) => {
+      if (!user?.id) throw new Error("No user ID found");
       
-      // Only include changed fields
-      const updates: Partial<FormValues> = {};
-      if (values.username !== user.username) updates.username = values.username;
-      if (values.bio !== user.bio) updates.bio = values.bio;
-      if (values.profilePic !== user.profilePic) updates.profilePic = values.profilePic;
+      const response = await apiRequest({
+        url: `/api/users/${user.id}`,
+        method: "PATCH",
+        data: values
+      });
       
-      // Only make the API call if there are changes
-      if (Object.keys(updates).length > 0) {
-        await apiRequest({
-          url: `/api/users/${user.id}`,
-          method: "PATCH",
-          data: updates,
-        });
-        
-        toast({
-          title: "Profile updated",
-          description: "Your profile has been updated successfully.",
-          variant: "default",
-        });
-        
-        onSuccess();
-      }
-      
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully",
+        variant: "default"
+      });
+      onSuccess();
       onClose();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       toast({
         title: "Error",
         description: error.message || "Failed to update profile. Please try again.",
-        variant: "destructive",
+        variant: "destructive"
       });
-    } finally {
-      setIsSubmitting(false);
     }
+  });
+
+  const onSubmit = async (values: FormValues) => {
+    updateProfileMutation.mutate(values);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
-          <DialogDescription>
-            Make changes to your profile here. Click save when you're done.
-          </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
@@ -134,7 +124,21 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen, onClo
                 <FormItem>
                   <FormLabel>Username</FormLabel>
                   <FormControl>
-                    <Input placeholder="Your username" {...field} />
+                    <Input placeholder="username" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="profilePic"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Profile Picture URL</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://example.com/profile.jpg" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -160,26 +164,15 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen, onClo
               )}
             />
             
-            <FormField
-              control={form.control}
-              name="profilePic"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Profile Picture URL</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://example.com/image.jpg" {...field} value={field.value || ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save changes"}
+            <DialogFooter className="pt-4">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button 
+                type="submit" 
+                disabled={updateProfileMutation.isPending}
+              >
+                {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </DialogFooter>
           </form>
@@ -187,6 +180,4 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ user, isOpen, onClo
       </DialogContent>
     </Dialog>
   );
-};
-
-export default EditProfileModal;
+}

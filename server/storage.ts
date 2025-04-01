@@ -7,6 +7,8 @@ import {
   conversations,
   conversationParticipants,
   messages,
+  postLikes,
+  bookmarks,
   type User, 
   type InsertUser,
   type Post,
@@ -20,7 +22,11 @@ import {
   type ConversationParticipant,
   type InsertConversationParticipant,
   type Message,
-  type InsertMessage
+  type InsertMessage,
+  type PostLike,
+  type InsertPostLike,
+  type Bookmark,
+  type InsertBookmark
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
@@ -41,6 +47,17 @@ export interface IStorage {
   updatePost(id: number, post: Partial<InsertPost>): Promise<Post | undefined>;
   deletePost(id: number): Promise<boolean>;
   likePost(id: number): Promise<Post | undefined>;
+  getSavedPosts(userId: number): Promise<Post[]>;
+  
+  // Post like operations
+  getLikeStatus(postId: number, userId: number): Promise<boolean>;
+  addLike(postId: number, userId: number): Promise<PostLike>;
+  removeLike(postId: number, userId: number): Promise<boolean>;
+  
+  // Bookmark operations
+  getBookmarkStatus(postId: number, userId: number): Promise<boolean>;
+  addBookmark(postId: number, userId: number): Promise<Bookmark>;
+  removeBookmark(postId: number, userId: number): Promise<boolean>;
 
   // Comment operations
   getComments(postId: number): Promise<Comment[]>;
@@ -144,6 +161,165 @@ export class DatabaseStorage implements IStorage {
       .where(eq(posts.id, id))
       .returning();
     return post;
+  }
+  
+  async getSavedPosts(userId: number): Promise<Post[]> {
+    const savedPostIds = await db
+      .select({ postId: bookmarks.postId })
+      .from(bookmarks)
+      .where(eq(bookmarks.userId, userId));
+    
+    if (savedPostIds.length === 0) {
+      return [];
+    }
+    
+    const postIds = savedPostIds.map(record => record.postId);
+    
+    return db
+      .select()
+      .from(posts)
+      .where(inArray(posts.id, postIds))
+      .orderBy(desc(posts.createdAt));
+  }
+  
+  // Post like operations
+  async getLikeStatus(postId: number, userId: number): Promise<boolean> {
+    const [like] = await db
+      .select()
+      .from(postLikes)
+      .where(
+        and(
+          eq(postLikes.postId, postId),
+          eq(postLikes.userId, userId)
+        )
+      );
+    
+    return like !== undefined;
+  }
+  
+  async addLike(postId: number, userId: number): Promise<PostLike> {
+    // Check if like already exists
+    const likeExists = await this.getLikeStatus(postId, userId);
+    
+    if (likeExists) {
+      // If like already exists, fetch and return it
+      const [existingLike] = await db
+        .select()
+        .from(postLikes)
+        .where(
+          and(
+            eq(postLikes.postId, postId),
+            eq(postLikes.userId, userId)
+          )
+        );
+      
+      return existingLike;
+    }
+    
+    // Increment post likes count
+    await db
+      .update(posts)
+      .set({ likes: sql`${posts.likes} + 1` })
+      .where(eq(posts.id, postId));
+    
+    // Add like record
+    const [newLike] = await db
+      .insert(postLikes)
+      .values({ postId, userId })
+      .returning();
+    
+    return newLike;
+  }
+  
+  async removeLike(postId: number, userId: number): Promise<boolean> {
+    // Check if like exists
+    const likeExists = await this.getLikeStatus(postId, userId);
+    
+    if (!likeExists) {
+      return false;
+    }
+    
+    // Decrement post likes count (ensuring it doesn't go below 0)
+    await db
+      .update(posts)
+      .set({ likes: sql`GREATEST(${posts.likes} - 1, 0)` })
+      .where(eq(posts.id, postId));
+    
+    // Remove like record
+    await db
+      .delete(postLikes)
+      .where(
+        and(
+          eq(postLikes.postId, postId),
+          eq(postLikes.userId, userId)
+        )
+      );
+    
+    return true;
+  }
+  
+  // Bookmark operations
+  async getBookmarkStatus(postId: number, userId: number): Promise<boolean> {
+    const [bookmark] = await db
+      .select()
+      .from(bookmarks)
+      .where(
+        and(
+          eq(bookmarks.postId, postId),
+          eq(bookmarks.userId, userId)
+        )
+      );
+    
+    return bookmark !== undefined;
+  }
+  
+  async addBookmark(postId: number, userId: number): Promise<Bookmark> {
+    // Check if bookmark already exists
+    const bookmarkExists = await this.getBookmarkStatus(postId, userId);
+    
+    if (bookmarkExists) {
+      // If bookmark already exists, fetch and return it
+      const [existingBookmark] = await db
+        .select()
+        .from(bookmarks)
+        .where(
+          and(
+            eq(bookmarks.postId, postId),
+            eq(bookmarks.userId, userId)
+          )
+        );
+      
+      return existingBookmark;
+    }
+    
+    // Add bookmark record
+    const [newBookmark] = await db
+      .insert(bookmarks)
+      .values({ postId, userId })
+      .returning();
+    
+    return newBookmark;
+  }
+  
+  async removeBookmark(postId: number, userId: number): Promise<boolean> {
+    // Check if bookmark exists
+    const bookmarkExists = await this.getBookmarkStatus(postId, userId);
+    
+    if (!bookmarkExists) {
+      return false;
+    }
+    
+    // Remove bookmark record
+    await db
+      .delete(bookmarks)
+      .where(
+        and(
+          eq(bookmarks.postId, postId),
+          eq(bookmarks.userId, userId)
+        )
+      );
+    
+    return true;
   }
 
   // Comment operations

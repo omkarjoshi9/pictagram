@@ -11,7 +11,9 @@ import type {
   Comment,
   Category,
   Conversation,
-  ConversationParticipant
+  ConversationParticipant,
+  PostLike,
+  Bookmark
 } from "@shared/schema";
 
 // We'll use a standard Map to track active WebSocket connections
@@ -24,7 +26,9 @@ import {
   insertCategorySchema,
   insertConversationSchema,
   insertConversationParticipantSchema,
-  insertMessageSchema
+  insertMessageSchema,
+  insertPostLikeSchema,
+  insertBookmarkSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -241,17 +245,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   );
 
+  // Updated likes endpoint with user tracking
   app.post(
     "/api/posts/:id/like",
     asyncHandler(async (req, res) => {
-      const id = parseInt(req.params.id);
-      const post = await storage.likePost(id);
+      const postId = parseInt(req.params.id);
+      const { userId } = req.body;
       
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      const post = await storage.getPost(postId);
       if (!post) {
         return res.status(404).json({ error: "Post not found" });
       }
       
-      res.json(post);
+      // Check if user already liked the post
+      const hasLiked = await storage.getLikeStatus(postId, userId);
+      
+      if (hasLiked) {
+        // If already liked, remove the like
+        await storage.removeLike(postId, userId);
+        const updatedPost = await storage.getPost(postId);
+        res.json({ liked: false, post: updatedPost });
+      } else {
+        // If not liked, add the like
+        await storage.addLike(postId, userId);
+        const updatedPost = await storage.getPost(postId);
+        res.json({ liked: true, post: updatedPost });
+      }
+    })
+  );
+  
+  // Get like status for a post
+  app.get(
+    "/api/posts/:id/like",
+    asyncHandler(async (req, res) => {
+      const postId = parseInt(req.params.id);
+      const userId = parseInt(req.query.userId as string);
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      const liked = await storage.getLikeStatus(postId, userId);
+      res.json({ liked });
+    })
+  );
+  
+  // Save/bookmark a post
+  app.post(
+    "/api/posts/:id/bookmark",
+    asyncHandler(async (req, res) => {
+      const postId = parseInt(req.params.id);
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      const post = await storage.getPost(postId);
+      if (!post) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+      
+      // Check if user already bookmarked the post
+      const hasBookmarked = await storage.getBookmarkStatus(postId, userId);
+      
+      if (hasBookmarked) {
+        // If already bookmarked, remove the bookmark
+        await storage.removeBookmark(postId, userId);
+        res.json({ bookmarked: false });
+      } else {
+        // If not bookmarked, add the bookmark
+        await storage.addBookmark(postId, userId);
+        res.json({ bookmarked: true });
+      }
+    })
+  );
+  
+  // Get bookmark status for a post
+  app.get(
+    "/api/posts/:id/bookmark",
+    asyncHandler(async (req, res) => {
+      const postId = parseInt(req.params.id);
+      const userId = parseInt(req.query.userId as string);
+      
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      
+      const bookmarked = await storage.getBookmarkStatus(postId, userId);
+      res.json({ bookmarked });
+    })
+  );
+  
+  // Get saved/bookmarked posts for a user
+  app.get(
+    "/api/users/:id/bookmarks",
+    asyncHandler(async (req, res) => {
+      const userId = parseInt(req.params.id);
+      const savedPosts = await storage.getSavedPosts(userId);
+      res.json(savedPosts);
     })
   );
 
@@ -552,6 +648,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }));
               } catch (err) {
                 console.error("Error broadcasting like event:", err);
+              }
+            }
+          });
+        } else if (data.type === "bookmark") {
+          // Broadcast bookmark event to all clients
+          wss.clients.forEach((client) => {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+              try {
+                client.send(JSON.stringify({ 
+                  type: "bookmark", 
+                  postId: data.postId,
+                  userId: data.userId,
+                  bookmarked: data.bookmarked
+                }));
+              } catch (err) {
+                console.error("Error broadcasting bookmark event:", err);
               }
             }
           });
