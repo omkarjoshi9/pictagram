@@ -147,7 +147,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     "/api/posts",
     asyncHandler(async (req, res) => {
-      const posts = await storage.getPosts();
+      // Check if userId query parameter is provided
+      const userId = req.query.userId ? parseInt(req.query.userId as string) : null;
+      
+      // If userId is provided, fetch posts for that user, otherwise fetch all posts
+      const posts = userId 
+        ? await storage.getPostsByUser(userId)
+        : await storage.getPosts();
+        
       res.json(posts);
     })
   );

@@ -1,20 +1,51 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
-import { Post, posts } from "../data/PostData";
+import { Post as PostType, Comment } from "../data/PostData";
 import PostCard from "../components/PostCard";
 import PostDetailModal from "../components/PostDetailModal";
 import { FaCircleUser, FaChartLine, FaUserPlus, FaEllipsis } from "react-icons/fa6";
+import { useQuery } from "@tanstack/react-query";
+import { useWallet } from "../hooks/use-wallet";
+import type { Post as DbPost } from "@shared/schema";
 
 export default function Profile() {
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [selectedPost, setSelectedPost] = useState<PostType | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("posts");
+  const { user } = useWallet();
   
-  // Filtered posts for the profile
-  const profilePosts = posts.filter(post => post.user.name === "Omkar Joshi");
+  // Fetch posts from API for the current user
+  const { data: dbPosts = [], isLoading } = useQuery({
+    queryKey: ["posts", "user", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const response = await fetch(`/api/posts?userId=${user.id}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch posts");
+      }
+      return response.json();
+    },
+    enabled: !!user?.id
+  });
 
-  const handlePostClick = (post: Post) => {
+  // Convert database posts to UI-compatible format
+  const profilePosts: PostType[] = dbPosts.map((dbPost: DbPost) => ({
+    id: dbPost.id,
+    user: {
+      id: user?.id || 0,
+      name: user?.username || "Loading...",
+      profilePic: user?.profilePic || "/default-avatar.svg"
+    },
+    imageUrl: dbPost.imageUrl,
+    caption: dbPost.caption || "",
+    likes: dbPost.likes || 0,
+    feeling: dbPost.feeling || "normal",
+    comments: [],
+    categories: []
+  }));
+
+  const handlePostClick = (post: PostType) => {
     setSelectedPost(post);
     setIsModalOpen(true);
   };
@@ -37,7 +68,7 @@ export default function Profile() {
             <div className="flex flex-col md:flex-row items-center md:items-start md:space-x-8">
               <div className="w-32 h-32 rounded-full overflow-hidden mb-4 md:mb-0">
                 <img 
-                  src="/assets/image/avatar_default.jpg" 
+                  src={user?.profilePic || "/default-avatar.svg"} 
                   alt="Profile" 
                   className="w-full h-full object-cover"
                 />
@@ -45,13 +76,12 @@ export default function Profile() {
               
               <div className="flex-1">
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
-                  <h1 className="text-2xl font-bold mb-2 md:mb-0 text-foreground">Omkar Joshi</h1>
+                  <h1 className="text-2xl font-bold mb-2 md:mb-0 text-foreground">
+                    {user?.username || "Loading..."}
+                  </h1>
                   <div className="flex space-x-2">
                     <button className="px-4 py-1.5 bg-primary text-white rounded-full text-sm font-medium">
-                      Follow
-                    </button>
-                    <button className="px-4 py-1.5 border border-border rounded-full text-sm font-medium text-foreground">
-                      Message
+                      Edit Profile
                     </button>
                     <button className="p-2 border border-border rounded-full">
                       <FaEllipsis className="h-4 w-4 text-foreground" />
@@ -75,8 +105,14 @@ export default function Profile() {
                 </div>
                 
                 <div>
-                  <h2 className="font-medium text-foreground">@omkarjoshi</h2>
-                  <p className="text-sm text-foreground mt-1">Software developer and photography enthusiast. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean euismod bibendum laoreet.</p>
+                  <h2 className="font-medium text-foreground">
+                    {user?.walletAddress ? 
+                      `${user.walletAddress.substring(0, 6)}...${user.walletAddress.substring(user.walletAddress.length - 4)}` 
+                      : "Loading..."}
+                  </h2>
+                  <p className="text-sm text-foreground mt-1">
+                    {user?.bio || "PICTagram user"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -130,7 +166,7 @@ export default function Profile() {
             <div className="mt-6">
               {activeTab === "posts" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {profilePosts.map((post) => (
+                  {profilePosts.map((post: PostType) => (
                     <PostCard key={post.id} post={post} onClick={() => handlePostClick(post)} />
                   ))}
                   
