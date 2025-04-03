@@ -10,6 +10,7 @@ import { useClickOutside } from "@mantine/hooks";
 import { ThemeToggle } from "./ThemeToggle";
 import ConnectWallet from "./ConnectWallet";
 import { useQuery } from "@tanstack/react-query";
+import { useWallet } from "../hooks/use-wallet";
 
 // Define user interface
 interface User {
@@ -29,6 +30,9 @@ const Navbar = () => {
   const [searchPanel, setSearchPanel] = useState(false);
   const [location] = useLocation();
   const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(null);
+  
+  // Get current user data from wallet hook
+  const { user } = useWallet();
 
   // Query to fetch users based on search query
   const { data: searchResults, refetch, isLoading } = useQuery({
@@ -188,8 +192,8 @@ const Navbar = () => {
                 onClick={() => setProfileMenu(!profileMenu)}
               >
                 <img
-                  src="/assets/image/avatar_default.jpg"
-                  alt="User Profile"
+                  src={user?.profilePic || "/default-avatar.svg"}
+                  alt={user?.username || "User Profile"}
                   className="h-full w-full object-cover"
                 />
               </div>
@@ -206,12 +210,12 @@ const Navbar = () => {
                 <div className="p-3 border-b border-border">
                   <Link href="/profile" className="flex items-center" onClick={() => setProfileMenu(false)}>
                     <img
-                      src="/assets/image/avatar_default.jpg"
-                      alt="User Profile"
+                      src={user?.profilePic || "/default-avatar.svg"}
+                      alt={user?.username || "User Profile"}
                       className="h-10 w-10 rounded-full object-cover"
                     />
                     <div className="ml-3">
-                      <div className="text-sm font-medium text-foreground">Omkar Joshi</div>
+                      <div className="text-sm font-medium text-foreground">{user?.username || "Your Profile"}</div>
                       <span className="text-xs text-primary cursor-pointer">See Profile</span>
                     </div>
                   </Link>
