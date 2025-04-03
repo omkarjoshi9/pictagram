@@ -329,15 +329,17 @@ export default function Profile() {
         <PostDetailModal
           post={{
             ...selectedPost,
+            // Ensure required properties for PostDetailModal
+            likes: selectedPost.likes || 0, 
+            comments: selectedPost.comments || [],
             user: {
               ...selectedPost.user,
-              // Ensure user object has required properties for PostDetailModal
               id: selectedPost.user?.id || 0,
               name: selectedPost.user?.name || selectedPost.user?.username || "User",
               username: selectedPost.user?.username || selectedPost.user?.name || "User",
               profilePic: selectedPost.user?.profilePic || "/default-avatar.svg"
             }
-          }}
+          } as any} // Use type assertion for compatibility
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onDelete={handleDeletePost}

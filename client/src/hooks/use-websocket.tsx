@@ -54,10 +54,17 @@ export function useWebSocket(
         }
       }
 
-      // Determine protocol based on current connection (ws or wss)
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      // Use environment variable for WebSocket URL if available, otherwise fallback to auto-detection
+      let wsUrl;
+      if (import.meta.env.VITE_WS_URL) {
+        wsUrl = import.meta.env.VITE_WS_URL;
+      } else {
+        // Fallback to auto-detection
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//${window.location.host}/ws`;
+      }
       
+      console.log(`Connecting to WebSocket at: ${wsUrl}`);
       setConnectionStatus('connecting');
       
       // Create new websocket connection
