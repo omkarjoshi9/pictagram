@@ -2,7 +2,30 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HiOutlineHeart, HiOutlineShare, HiOutlineTrash, HiHeart } from "react-icons/hi";
 import { HiOutlineBookmark, HiOutlineChatBubbleOvalLeft, HiBookmark } from "react-icons/hi2";
-import { Post } from "../data/PostData";
+// Import Post type and define compatible interface for component
+interface User {
+  id: number;
+  username?: string;
+  name?: string;
+  profilePic?: string;
+}
+
+interface Post {
+  id: number;
+  userId: number;
+  imageUrl: string;
+  caption: string;
+  feeling?: string;
+  createdAt: string;
+  user: User;
+  categories?: string[];
+  likes: number;
+  comments: Array<{
+    user: User;
+    text: string;
+    timeAgo: string;
+  }>;
+}
 import { FaEllipsisH } from "react-icons/fa";
 import { useWallet } from "../hooks/use-wallet";
 import { useToast } from "../hooks/use-toast";

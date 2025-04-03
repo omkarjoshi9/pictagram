@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
-import { Post as PostType, Comment } from "../data/PostData";
+import { Comment } from "../data/PostData";
 import PostCard from "../components/PostCard";
 import PostDetailModal from "../components/PostDetailModal";
 import EditProfileModal from "../components/EditProfileModal";
@@ -15,8 +15,29 @@ import type { Post as DbPost } from "@shared/schema";
 import { apiRequest } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
 
+// Define Post type to match what PostCard component expects
+interface User {
+  id: number;
+  username?: string;
+  name?: string;
+  profilePic?: string;
+}
+
+interface Post {
+  id: number;
+  userId: number;
+  imageUrl: string;
+  caption: string;
+  feeling?: string;
+  createdAt: string;
+  user?: User;
+  categories?: string[];
+  likes?: number;
+  comments?: any[];
+}
+
 export default function Profile() {
-  const [selectedPost, setSelectedPost] = useState<PostType | null>(null);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
@@ -106,10 +127,11 @@ export default function Profile() {
   });
 
   // Convert database posts to UI-compatible format
-  const profilePosts: PostType[] = dbPosts.map((dbPost: DbPost) => ({
+  const profilePosts: Post[] = dbPosts.map((dbPost: DbPost) => ({
     id: dbPost.id,
     user: {
       id: profileUser?.id || 0,
+      username: profileUser?.username || "Loading...",
       name: profileUser?.username || "Loading...",
       profilePic: profileUser?.profilePic || "/default-avatar.svg"
     },
@@ -118,10 +140,13 @@ export default function Profile() {
     likes: dbPost.likes || 0,
     feeling: dbPost.feeling || "normal",
     comments: [],
-    categories: []
+    categories: [],
+    // Add these properties to match the PostCard component's expected Post type
+    userId: dbPost.userId,
+    createdAt: dbPost.createdAt
   }));
 
-  const handlePostClick = (post: PostType) => {
+  const handlePostClick = (post: Post) => {
     setSelectedPost(post);
     setIsModalOpen(true);
   };
@@ -272,7 +297,7 @@ export default function Profile() {
             <div className="mt-6">
               {activeTab === "posts" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {profilePosts.map((post: PostType) => (
+                  {profilePosts.map((post: Post) => (
                     <PostCard key={post.id} post={post} onClick={() => handlePostClick(post)} />
                   ))}
                   
@@ -302,7 +327,17 @@ export default function Profile() {
       
       {selectedPost && (
         <PostDetailModal
-          post={selectedPost}
+          post={{
+            ...selectedPost,
+            user: {
+              ...selectedPost.user,
+              // Ensure user object has required properties for PostDetailModal
+              id: selectedPost.user?.id || 0,
+              name: selectedPost.user?.name || selectedPost.user?.username || "User",
+              username: selectedPost.user?.username || selectedPost.user?.name || "User",
+              profilePic: selectedPost.user?.profilePic || "/default-avatar.svg"
+            }
+          }}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onDelete={handleDeletePost}

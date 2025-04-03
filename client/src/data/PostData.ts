@@ -15,6 +15,9 @@ export interface Post {
   feeling: string;
   comments: Comment[];
   categories: string[];
+  // Add these to match the database schema post type
+  userId: number;
+  createdAt: string;
 }
 
 export const posts: Post[] = [
@@ -25,6 +28,8 @@ export const posts: Post[] = [
     caption: "Amazing view from my hike today! Sometimes you need to disconnect to reconnect with nature. #hiking #sunset #mountains",
     likes: 124,
     feeling: "is feeling happy with @johndoe",
+    userId: 7, // Match with userData[6].id
+    createdAt: new Date().toISOString(),
     comments: [
       {
         user: userData[0], // John Doe
@@ -46,6 +51,8 @@ export const posts: Post[] = [
     caption: "Exploring the mountains this weekend was exactly what I needed. The fresh air and stunning views were rejuvenating!",
     likes: 98,
     feeling: "is feeling refreshed",
+    userId: 2, // Match with userData[1].id
+    createdAt: new Date().toISOString(),
     comments: [
       {
         user: userData[2], // Mark Johnson
@@ -67,6 +74,8 @@ export const posts: Post[] = [
     caption: "Coffee and code - the perfect way to start my day. Working on some exciting new projects!",
     likes: 210,
     feeling: "is feeling productive",
+    userId: 3, // Match with userData[2].id
+    createdAt: new Date().toISOString(),
     comments: [
       {
         user: userData[4], // Robert Adams
@@ -88,6 +97,8 @@ export const posts: Post[] = [
     caption: "Beach sunset vibes 🌊 Nothing compares to the sound of waves and the colors of sunset.",
     likes: 156,
     feeling: "is feeling peaceful",
+    userId: 4, // Match with userData[3].id
+    createdAt: new Date().toISOString(),
     comments: [
       {
         user: userData[1], // Sophie Alexander
@@ -109,6 +120,8 @@ export const posts: Post[] = [
     caption: "City lights and urban nights. There's something magical about cities after dark.",
     likes: 89,
     feeling: "is feeling inspired",
+    userId: 5, // Match with userData[4].id
+    createdAt: new Date().toISOString(),
     comments: [
       {
         user: userData[2], // Mark Johnson
@@ -130,6 +143,8 @@ export const posts: Post[] = [
     caption: "Meet my new furry friend! 🐱 She's been keeping me company while I work from home.",
     likes: 287,
     feeling: "is feeling happy",
+    userId: 6, // Match with userData[5].id
+    createdAt: new Date().toISOString(),
     comments: [
       {
         user: userData[3], // Sarah Parker

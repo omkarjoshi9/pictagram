@@ -50,7 +50,11 @@ function asyncHandler(
 // Set up file upload storage
 const profilePictureStorage = multer.diskStorage({
   destination: function(req, file, cb) {
-    const uploadDir = path.join(process.cwd(), 'public/uploads/profile-pictures');
+    // Use environment variable or default upload directory
+    const uploadDir = process.env.UPLOAD_DIR 
+      ? path.join(process.cwd(), process.env.UPLOAD_DIR, 'profile-pictures')
+      : path.join(process.cwd(), 'public/uploads/profile-pictures');
+    
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -763,11 +767,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // This prevents conflicts with Vite's HMR WebSocket
   const wss = new WebSocketServer({ 
     server: httpServer,
-    path: '/ws',  // Use dedicated WebSocket path
-    perMessageDeflate: false,  // Disable per-message deflate to avoid some compatibility issues
-    maxPayload: 1024 * 1024,   // 1MB max message size
-    skipUTF8Validation: false, // Always validate UTF8
-    clientTracking: true       // Track connected clients automatically
+    path: process.env.WS_PATH || '/ws',  // Use dedicated WebSocket path from env or default
+    perMessageDeflate: process.env.WS_COMPRESSION === 'true',  // Enable compression based on env
+    maxPayload: process.env.WS_MAX_PAYLOAD ? 
+      parseInt(process.env.WS_MAX_PAYLOAD) : 1024 * 1024,  // Max message size from env or 1MB
+    skipUTF8Validation: process.env.WS_SKIP_UTF8_VALIDATION === 'true', // UTF8 validation setting
+    clientTracking: true  // Always track connected clients
   });
 
   // Connection counter for logging

@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 // Define the interfaces needed for the PostCard
 interface User {
   id: number;
-  username: string;
+  username?: string; // Make username optional to match with other User interfaces
+  name?: string; // Support both username and name
   profilePic?: string;
 }
 
@@ -28,7 +29,7 @@ interface PostCardProps {
 const PostCard: React.FC<PostCardProps> = ({ post, onClick }) => {
   // Default placeholder values when data is not available
   const imageUrl = post.imageUrl || "/placeholder-image.jpg";
-  const username = post.user?.username || "Unknown user";
+  const username = post.user?.username || post.user?.name || "Unknown user";
   const profilePic = post.user?.profilePic || "/placeholder-avatar.jpg";
   
   return (
