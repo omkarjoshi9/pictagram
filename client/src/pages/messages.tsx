@@ -85,7 +85,9 @@ export default function Messages() {
       
       return enrichedConversations;
     },
-    enabled: !!user?.id
+    enabled: !!user?.id,
+    refetchInterval: 5000, // Auto-refresh conversations every 5 seconds
+    staleTime: 3000      // Consider data stale after 3 seconds
   });
   
   // Fetch messages for the selected conversation
@@ -199,13 +201,19 @@ export default function Messages() {
     if (!lastMessage) return;
     
     if (lastMessage.type === "new_message") {
+      console.log("Received WebSocket message in Messages page:", lastMessage);
+      
       // Refetch messages if the new message belongs to the current conversation
       if (selectedConversation?.id === lastMessage.message.conversationId) {
         refetchMessages();
         markMessagesAsRead();
       }
       
-      // Refetch conversations to update the list
+      // Always refetch conversations to update the list with new messages
+      refetchConversations();
+    } else if (lastMessage.type === "message_sent") {
+      console.log("Message sent confirmation received:", lastMessage);
+      // Refetch conversations to show the new message in the sidebar
       refetchConversations();
     } else if (lastMessage.type === "message_read") {
       // Refetch messages to update read status
@@ -213,7 +221,7 @@ export default function Messages() {
         refetchMessages();
       }
     }
-  }, [lastMessage]);
+  }, [lastMessage, selectedConversation?.id, refetchMessages, refetchConversations, markMessagesAsRead]);
   
   // Scroll to bottom of messages when new messages arrive or conversation changes
   useEffect(() => {

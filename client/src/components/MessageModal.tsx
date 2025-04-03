@@ -170,8 +170,10 @@ export default function MessageModal({ recipientUser, isOpen, onClose }: Message
         content: messageData.content || messageData.text || '',
       };
       
-      // If this message belongs to our conversation
-      if (processedMessage.conversationId === conversationId) {
+      // If this message belongs to our conversation AND was not sent by current user
+      if (processedMessage.conversationId === conversationId && 
+          processedMessage.senderId !== currentUser?.id) {
+          
         // Check if we already have this message
         const messageExists = messages.some(m => m.id === processedMessage.id);
         
@@ -180,26 +182,19 @@ export default function MessageModal({ recipientUser, isOpen, onClose }: Message
           setMessages(prev => [...prev, processedMessage]);
           scrollToBottom();
           
-          // Play notification sound (if not sent by the current user)
-          if (processedMessage.senderId !== currentUser?.id) {
-            // Optionally add a sound effect for new messages
-            // const audio = new Audio('/notification.mp3');
-            // audio.play().catch(e => console.log('Audio play error:', e));
-            
-            // Show toast notification
-            toast({
-              title: "New Message",
-              description: `${recipientUser?.username || 'Someone'} sent you a message`,
-              variant: "default",
-            });
-          }
+          // Show toast notification for incoming messages
+          toast({
+            title: "New Message",
+            description: `${recipientUser?.username || 'Someone'} sent you a message`,
+            variant: "default",
+          });
         }
       }
     }
     
-    // Also handle message_sent confirmations
+    // For message_sent confirmations, don't add message to UI since we already did that in the mutation
     if (lastMessage && lastMessage.type === "message_sent" && lastMessage.success) {
-      const sentMessage = lastMessage.message;
+      // Just refresh the messages list if needed
       queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
     }
   }, [lastMessage, conversationId, messages, currentUser?.id, recipientUser?.username, toast, queryClient]);
