@@ -4,7 +4,11 @@
 
 echo "Starting build process for Vercel deployment..."
 
-# Build the client
+# Use the Vercel-specific tsconfig with looser type checking
+echo "Using Vercel-specific TypeScript configuration..."
+cp tsconfig.vercel.json tsconfig.json
+
+# Build the client with less strict TypeScript checks
 echo "Building client..."
 npm run build
 

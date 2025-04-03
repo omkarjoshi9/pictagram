@@ -143,21 +143,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchUsers(query: string): Promise<User[]> {
-    if (!query || query.trim() === '') {
-      return db.select().from(users).limit(10);
-    }
-    
-    // Search by username or wallet address with case-insensitive pattern matching
-    return db
-      .select()
-      .from(users)
-      .where(
-        or(
-          like(users.username, `%${query}%`),
-          like(users.walletAddress, `%${query}%`)
+    try {
+      const dbInstance = await this.checkDb();
+      
+      if (!query || query.trim() === '') {
+        return dbInstance.select().from(users).limit(10);
+      }
+      
+      // Search by username or wallet address with case-insensitive pattern matching
+      return dbInstance
+        .select()
+        .from(users)
+        .where(
+          or(
+            like(users.username, `%${query}%`),
+            like(users.walletAddress, `%${query}%`)
+          )
         )
-      )
-      .limit(20);
+        .limit(20);
+    } catch (error) {
+      console.error('Error in searchUsers:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return []; // Return empty array in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -165,7 +175,7 @@ export class DatabaseStorage implements IStorage {
       const dbInstance = await this.checkDb();
       
       // Add extra logging for wallet-based auth debugging
-      console.log(`Creating user with wallet address: ${insertUser.walletAddress}`);
+      console.log(`Creating user with wallet address: ${insertUser.walletAddress || 'undefined'}`);
       
       const [user] = await dbInstance.insert(users).values(insertUser).returning();
       console.log(`User created successfully with ID: ${user.id}`);
@@ -176,17 +186,20 @@ export class DatabaseStorage implements IStorage {
       // Handle database errors more gracefully
       if (error instanceof Error) {
         if (error.message.includes('duplicate key') || error.message.includes('unique constraint')) {
-          console.warn(`User with wallet address ${insertUser.walletAddress} already exists`);
+          const walletAddress = insertUser.walletAddress || '';
+          console.warn(`User with wallet address ${walletAddress} already exists`);
           
           // Try to fetch the existing user
-          try {
-            const existingUser = await this.getUserByWalletAddress(insertUser.walletAddress);
-            if (existingUser) {
-              console.log(`Returning existing user with ID: ${existingUser.id}`);
-              return existingUser;
+          if (walletAddress) {
+            try {
+              const existingUser = await this.getUserByWalletAddress(walletAddress);
+              if (existingUser) {
+                console.log(`Returning existing user with ID: ${existingUser.id}`);
+                return existingUser;
+              }
+            } catch (fetchError) {
+              console.error('Error fetching existing user:', fetchError);
             }
-          } catch (fetchError) {
-            console.error('Error fetching existing user:', fetchError);
           }
         }
       }
@@ -196,114 +209,177 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
-    const [user] = await db
-      .update(users)
-      .set(userData)
-      .where(eq(users.id, id))
-      .returning();
-    return user;
+    try {
+      const dbInstance = await this.checkDb();
+      const [user] = await dbInstance
+        .update(users)
+        .set(userData)
+        .where(eq(users.id, id))
+        .returning();
+      return user;
+    } catch (error) {
+      console.error('Error in updateUser:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   // Post operations
   async getPost(id: number): Promise<Post | undefined> {
-    const [post] = await db.select().from(posts).where(eq(posts.id, id));
-    return post;
+    try {
+      const dbInstance = await this.checkDb();
+      const [post] = await dbInstance.select().from(posts).where(eq(posts.id, id));
+      return post;
+    } catch (error) {
+      console.error('Error in getPost:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async getPosts(): Promise<Post[]> {
-    return db.select().from(posts).orderBy(desc(posts.createdAt));
+    try {
+      const dbInstance = await this.checkDb();
+      return dbInstance.select().from(posts).orderBy(desc(posts.createdAt));
+    } catch (error) {
+      console.error('Error in getPosts:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return []; // Return empty array in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async getPostsByUser(userId: number): Promise<Post[]> {
-    return db.select().from(posts).where(eq(posts.userId, userId)).orderBy(desc(posts.createdAt));
+    try {
+      const dbInstance = await this.checkDb();
+      return dbInstance.select().from(posts).where(eq(posts.userId, userId)).orderBy(desc(posts.createdAt));
+    } catch (error) {
+      console.error('Error in getPostsByUser:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return []; // Return empty array in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async createPost(post: InsertPost): Promise<Post> {
-    const [newPost] = await db.insert(posts).values(post).returning();
-    return newPost;
+    try {
+      const dbInstance = await this.checkDb();
+      const [newPost] = await dbInstance.insert(posts).values(post).returning();
+      return newPost;
+    } catch (error) {
+      console.error('Error in createPost:', error);
+      throw error;
+    }
   }
 
   async updatePost(id: number, postData: Partial<InsertPost>): Promise<Post | undefined> {
-    const [post] = await db
-      .update(posts)
-      .set(postData)
-      .where(eq(posts.id, id))
-      .returning();
-    return post;
+    try {
+      const dbInstance = await this.checkDb();
+      const [post] = await dbInstance
+        .update(posts)
+        .set(postData)
+        .where(eq(posts.id, id))
+        .returning();
+      return post;
+    } catch (error) {
+      console.error('Error in updatePost:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async deletePost(id: number): Promise<boolean> {
-    // First, delete all related records in dependent tables
-    // Delete comments for this post
-    await db.delete(comments).where(eq(comments.postId, id));
-    
-    // Delete post categories
-    await db.delete(postCategories).where(eq(postCategories.postId, id));
-    
-    // Delete post likes
-    await db.delete(postLikes).where(eq(postLikes.postId, id));
-    
-    // Delete bookmarks
-    await db.delete(bookmarks).where(eq(bookmarks.postId, id));
-    
-    // Finally delete the post itself
-    await db.delete(posts).where(eq(posts.id, id));
-    
-    // Check if the post still exists after deletion attempt
-    const post = await this.getPost(id);
-    return post === undefined;
+    try {
+      const dbInstance = await this.checkDb();
+      
+      // First, delete all related records in dependent tables
+      // Delete comments for this post
+      await dbInstance.delete(comments).where(eq(comments.postId, id));
+      
+      // Delete post categories
+      await dbInstance.delete(postCategories).where(eq(postCategories.postId, id));
+      
+      // Delete post likes
+      await dbInstance.delete(postLikes).where(eq(postLikes.postId, id));
+      
+      // Delete bookmarks
+      await dbInstance.delete(bookmarks).where(eq(bookmarks.postId, id));
+      
+      // Finally delete the post itself
+      await dbInstance.delete(posts).where(eq(posts.id, id));
+      
+      // Check if the post still exists after deletion attempt
+      const post = await this.getPost(id);
+      return post === undefined;
+    } catch (error) {
+      console.error('Error in deletePost:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return false; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async likePost(id: number): Promise<Post | undefined> {
-    const [post] = await db
-      .update(posts)
-      .set({ likes: sql`${posts.likes} + 1` })
-      .where(eq(posts.id, id))
-      .returning();
-    return post;
+    try {
+      const dbInstance = await this.checkDb();
+      const [post] = await dbInstance
+        .update(posts)
+        .set({ likes: sql`${posts.likes} + 1` })
+        .where(eq(posts.id, id))
+        .returning();
+      return post;
+    } catch (error) {
+      console.error('Error in likePost:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
   
   async getSavedPosts(userId: number): Promise<Post[]> {
-    const savedPostIds = await db
-      .select({ postId: bookmarks.postId })
-      .from(bookmarks)
-      .where(eq(bookmarks.userId, userId));
-    
-    if (savedPostIds.length === 0) {
-      return [];
+    try {
+      const dbInstance = await this.checkDb();
+      
+      const savedPostIds = await dbInstance
+        .select({ postId: bookmarks.postId })
+        .from(bookmarks)
+        .where(eq(bookmarks.userId, userId));
+      
+      if (savedPostIds.length === 0) {
+        return [];
+      }
+      
+      const postIds = savedPostIds.map(record => record.postId);
+      
+      return await dbInstance
+        .select()
+        .from(posts)
+        .where(inArray(posts.id, postIds))
+        .orderBy(desc(posts.createdAt));
+    } catch (error) {
+      console.error('Error in getSavedPosts:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return []; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
     }
-    
-    const postIds = savedPostIds.map(record => record.postId);
-    
-    return db
-      .select()
-      .from(posts)
-      .where(inArray(posts.id, postIds))
-      .orderBy(desc(posts.createdAt));
   }
   
   // Post like operations
   async getLikeStatus(postId: number, userId: number): Promise<boolean> {
-    const [like] = await db
-      .select()
-      .from(postLikes)
-      .where(
-        and(
-          eq(postLikes.postId, postId),
-          eq(postLikes.userId, userId)
-        )
-      );
-    
-    return like !== undefined;
-  }
-  
-  async addLike(postId: number, userId: number): Promise<PostLike> {
-    // Check if like already exists
-    const likeExists = await this.getLikeStatus(postId, userId);
-    
-    if (likeExists) {
-      // If like already exists, fetch and return it
-      const [existingLike] = await db
+    try {
+      const dbInstance = await this.checkDb();
+      const [like] = await dbInstance
         .select()
         .from(postLikes)
         .where(
@@ -313,73 +389,103 @@ export class DatabaseStorage implements IStorage {
           )
         );
       
-      return existingLike;
+      return like !== undefined;
+    } catch (error) {
+      console.error('Error in getLikeStatus:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return false; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
     }
-    
-    // Increment post likes count
-    await db
-      .update(posts)
-      .set({ likes: sql`${posts.likes} + 1` })
-      .where(eq(posts.id, postId));
-    
-    // Add like record
-    const [newLike] = await db
-      .insert(postLikes)
-      .values({ postId, userId })
-      .returning();
-    
-    return newLike;
+  }
+  
+  async addLike(postId: number, userId: number): Promise<PostLike> {
+    try {
+      const dbInstance = await this.checkDb();
+      
+      // Check if like already exists
+      const likeExists = await this.getLikeStatus(postId, userId);
+      
+      if (likeExists) {
+        // If like already exists, fetch and return it
+        const [existingLike] = await dbInstance
+          .select()
+          .from(postLikes)
+          .where(
+            and(
+              eq(postLikes.postId, postId),
+              eq(postLikes.userId, userId)
+            )
+          );
+        
+        return existingLike;
+      }
+      
+      // Increment post likes count
+      await dbInstance
+        .update(posts)
+        .set({ likes: sql`${posts.likes} + 1` })
+        .where(eq(posts.id, postId));
+      
+      // Add like record
+      const [newLike] = await dbInstance
+        .insert(postLikes)
+        .values({ postId, userId })
+        .returning();
+      
+      return newLike;
+    } catch (error) {
+      console.error('Error in addLike:', error);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Failed to add like'); // In this case, we should throw an error since we can't return a valid like
+      }
+      throw error; // Rethrow in development
+    }
   }
   
   async removeLike(postId: number, userId: number): Promise<boolean> {
-    // Check if like exists
-    const likeExists = await this.getLikeStatus(postId, userId);
-    
-    if (!likeExists) {
-      return false;
+    try {
+      const dbInstance = await this.checkDb();
+      
+      // Check if like exists
+      const likeExists = await this.getLikeStatus(postId, userId);
+      
+      if (!likeExists) {
+        return false;
+      }
+      
+      // Decrement post likes count (ensuring it doesn't go below 0)
+      await dbInstance
+        .update(posts)
+        .set({ likes: sql`GREATEST(${posts.likes} - 1, 0)` })
+        .where(eq(posts.id, postId));
+      
+      // Remove like record
+      await dbInstance
+        .delete(postLikes)
+        .where(
+          and(
+            eq(postLikes.postId, postId),
+            eq(postLikes.userId, userId)
+          )
+        );
+      
+      return true;
+    } catch (error) {
+      console.error('Error in removeLike:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return false; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
     }
-    
-    // Decrement post likes count (ensuring it doesn't go below 0)
-    await db
-      .update(posts)
-      .set({ likes: sql`GREATEST(${posts.likes} - 1, 0)` })
-      .where(eq(posts.id, postId));
-    
-    // Remove like record
-    await db
-      .delete(postLikes)
-      .where(
-        and(
-          eq(postLikes.postId, postId),
-          eq(postLikes.userId, userId)
-        )
-      );
-    
-    return true;
   }
   
   // Bookmark operations
   async getBookmarkStatus(postId: number, userId: number): Promise<boolean> {
-    const [bookmark] = await db
-      .select()
-      .from(bookmarks)
-      .where(
-        and(
-          eq(bookmarks.postId, postId),
-          eq(bookmarks.userId, userId)
-        )
-      );
-    
-    return bookmark !== undefined;
-  }
-  
-  async addBookmark(postId: number, userId: number): Promise<Bookmark> {
-    // Check if bookmark already exists
-    const bookmarkExists = await this.getBookmarkStatus(postId, userId);
-    
-    if (bookmarkExists) {
-      // If bookmark already exists, fetch and return it
-      const [existingBookmark] = await db
+    try {
+      const dbInstance = await this.checkDb();
+      
+      const [bookmark] = await dbInstance
         .select()
         .from(bookmarks)
         .where(
@@ -389,59 +495,148 @@ export class DatabaseStorage implements IStorage {
           )
         );
       
-      return existingBookmark;
+      return bookmark !== undefined;
+    } catch (error) {
+      console.error('Error in getBookmarkStatus:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return false; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
     }
-    
-    // Add bookmark record
-    const [newBookmark] = await db
-      .insert(bookmarks)
-      .values({ postId, userId })
-      .returning();
-    
-    return newBookmark;
+  }
+  
+  async addBookmark(postId: number, userId: number): Promise<Bookmark> {
+    try {
+      const dbInstance = await this.checkDb();
+      
+      // Check if bookmark already exists
+      const bookmarkExists = await this.getBookmarkStatus(postId, userId);
+      
+      if (bookmarkExists) {
+        // If bookmark already exists, fetch and return it
+        const [existingBookmark] = await dbInstance
+          .select()
+          .from(bookmarks)
+          .where(
+            and(
+              eq(bookmarks.postId, postId),
+              eq(bookmarks.userId, userId)
+            )
+          );
+        
+        return existingBookmark;
+      }
+      
+      // Add bookmark record
+      const [newBookmark] = await dbInstance
+        .insert(bookmarks)
+        .values({ postId, userId })
+        .returning();
+      
+      return newBookmark;
+    } catch (error) {
+      console.error('Error in addBookmark:', error);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Failed to add bookmark'); // We need to throw an error since we can't return a valid bookmark
+      }
+      throw error; // Rethrow in development
+    }
   }
   
   async removeBookmark(postId: number, userId: number): Promise<boolean> {
-    // Check if bookmark exists
-    const bookmarkExists = await this.getBookmarkStatus(postId, userId);
-    
-    if (!bookmarkExists) {
-      return false;
+    try {
+      const dbInstance = await this.checkDb();
+      
+      // Check if bookmark exists
+      const bookmarkExists = await this.getBookmarkStatus(postId, userId);
+      
+      if (!bookmarkExists) {
+        return false;
+      }
+      
+      // Remove bookmark record
+      await dbInstance
+        .delete(bookmarks)
+        .where(
+          and(
+            eq(bookmarks.postId, postId),
+            eq(bookmarks.userId, userId)
+          )
+        );
+      
+      return true;
+    } catch (error) {
+      console.error('Error in removeBookmark:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return false; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
     }
-    
-    // Remove bookmark record
-    await db
-      .delete(bookmarks)
-      .where(
-        and(
-          eq(bookmarks.postId, postId),
-          eq(bookmarks.userId, userId)
-        )
-      );
-    
-    return true;
   }
 
   // Comment operations
   async getComments(postId: number): Promise<Comment[]> {
-    return db.select().from(comments).where(eq(comments.postId, postId)).orderBy(desc(comments.createdAt));
+    try {
+      const dbInstance = await this.checkDb();
+      return dbInstance
+        .select()
+        .from(comments)
+        .where(eq(comments.postId, postId))
+        .orderBy(desc(comments.createdAt));
+    } catch (error) {
+      console.error('Error in getComments:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return []; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async createComment(comment: InsertComment): Promise<Comment> {
-    const [newComment] = await db.insert(comments).values(comment).returning();
-    return newComment;
+    try {
+      const dbInstance = await this.checkDb();
+      const [newComment] = await dbInstance.insert(comments).values(comment).returning();
+      return newComment;
+    } catch (error) {
+      console.error('Error in createComment:', error);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Failed to create comment'); // We need to throw an error since we can't return a valid comment
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async deleteComment(id: number): Promise<boolean> {
-    await db.delete(comments).where(eq(comments.id, id));
-    // Check if the comment still exists after deletion attempt
-    const [comment] = await db.select().from(comments).where(eq(comments.id, id));
-    return comment === undefined;
+    try {
+      const dbInstance = await this.checkDb();
+      
+      await dbInstance.delete(comments).where(eq(comments.id, id));
+      
+      // Check if the comment still exists after deletion attempt
+      const [comment] = await dbInstance.select().from(comments).where(eq(comments.id, id));
+      
+      return comment === undefined;
+    } catch (error) {
+      console.error('Error in deleteComment:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return false; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   // Category operations
   async getCategories(): Promise<Category[]> {
-    return db.select().from(categories);
+    try {
+      const dbInstance = await this.checkDb();
+      return dbInstance.select().from(categories);
+    } catch (error) {
+      console.error('Error in getCategories:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return []; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async getCategoryByName(name: string): Promise<Category | undefined> {

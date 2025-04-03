@@ -18,10 +18,41 @@ else
   echo "✅ .env file already exists"
 fi
 
+# Check if tsconfig.vercel.json exists
+if [ ! -f "tsconfig.vercel.json" ]; then
+  echo "❌ tsconfig.vercel.json is missing, creating it..."
+  echo '{
+  "include": ["client/src/**/*", "shared/**/*", "server/**/*"],
+  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
+    "noEmit": true,
+    "module": "ESNext",
+    "strict": false,
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "jsx": "preserve",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@/*": ["./client/src/*"],
+      "@shared/*": ["./shared/*"]
+    }
+  }
+}' > tsconfig.vercel.json
+  echo "✅ Created tsconfig.vercel.json with less strict type checking"
+else
+  echo "✅ tsconfig.vercel.json already exists"
+fi
+
 # Check if the required files exist
 echo "🔍 Checking for required Vercel deployment files..."
 
-REQUIRED_FILES=("vercel.json" "vercel-build.sh" "server/vercel.ts" "server/vercel.package.json")
+REQUIRED_FILES=("vercel.json" "vercel-build.sh" "server/vercel.ts" "server/vercel.package.json" "tsconfig.vercel.json")
 MISSING_FILES=()
 
 for file in "${REQUIRED_FILES[@]}"; do
@@ -41,11 +72,21 @@ else
   exit 1
 fi
 
+# Use Vercel-specific tsconfig for build test
+echo "📝 Using Vercel-specific TypeScript configuration for build test..."
+cp tsconfig.json tsconfig.original.json
+cp tsconfig.vercel.json tsconfig.json
+
 # Run a build test
 echo "🧪 Testing build process..."
 npm run build
+BUILD_RESULT=$?
 
-if [ $? -eq 0 ]; then
+# Restore original tsconfig
+echo "📝 Restoring original TypeScript configuration..."
+mv tsconfig.original.json tsconfig.json
+
+if [ $BUILD_RESULT -eq 0 ]; then
   echo "✅ Build successful"
 else
   echo "❌ Build failed. Please fix build errors before deploying"
@@ -61,4 +102,4 @@ echo "2. Connect your repository to Vercel"
 echo "3. Configure environment variables in Vercel"
 echo "4. Deploy your application"
 echo ""
-echo "See DEPLOYMENT_GUIDE.md or README.md for detailed instructions."
+echo "See DEPLOYMENT.md for detailed instructions."

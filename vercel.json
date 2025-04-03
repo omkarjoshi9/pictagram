@@ -1,24 +1,36 @@
 {
   "version": 2,
-  "buildCommand": "./vercel-build.sh",
-  "builds": [
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "client/dist",
+  "framework": "vite",
+  "regions": ["iad1"],
+  "headers": [
     {
-      "src": "server/vercel.ts",
-      "use": "@vercel/node",
-      "config": { 
-        "includeFiles": ["client/dist/**", "public/**"],
-        "nodeVersion": "22.x"
-      }
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
     }
   ],
-  "routes": [
-    { "src": "/api/health", "dest": "server/vercel.ts" },
-    { "src": "/api/(.*)", "dest": "server/vercel.ts" },
-    { "src": "/ws", "dest": "server/vercel.ts" },
-    { "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|json|svg|woff|woff2|ttf|otf)$)", "dest": "/client/dist/$1" },
-    { "src": "/(.*)", "dest": "server/vercel.ts" }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }

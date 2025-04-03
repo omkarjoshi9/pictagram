@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { log } from "./vite";
 import { storage } from "./storage";
 import { checkDatabaseConnection } from "./db";
+import { healthCheckHandler } from './health';
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -86,16 +87,7 @@ const uploadProfilePicture = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
-  app.get("/api/health", asyncHandler(async (req, res) => {
-    // Check database connection
-    const dbStatus = await checkDatabaseConnection();
-    
-    res.json({ 
-      status: "ok", 
-      timestamp: new Date().toISOString(),
-      database: dbStatus
-    });
-  }));
+  app.get("/api/health", asyncHandler(healthCheckHandler));
   // User routes
   // Add search users endpoint - must be before the /:id route
   app.get(

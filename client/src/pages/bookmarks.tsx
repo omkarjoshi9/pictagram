@@ -15,7 +15,7 @@ export default function Bookmarks() {
   const { user } = useWallet();
   
   // Query saved posts from API
-  const { data: bookmarkedPosts, isLoading, error } = useQuery<Post[]>({
+  const { data: bookmarkedPosts, isLoading, error } = useQuery({
     queryKey: ["bookmarks", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];

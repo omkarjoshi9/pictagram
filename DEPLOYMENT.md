@@ -1,123 +1,124 @@
 # PICTagram Deployment Guide
 
-This guide provides step-by-step instructions for deploying PICTagram to Vercel.
+This document provides comprehensive instructions for deploying the PICTagram application on Vercel. Follow these steps to ensure a successful deployment with proper TypeScript configuration and database connectivity.
 
 ## Prerequisites
 
-- A GitHub/GitLab repository with your code
-- A PostgreSQL database (Neon DB recommended)
-- Node.js 22+ installed locally
+Before deploying to Vercel, ensure:
 
-## Database Setup
+1. You have a [Vercel account](https://vercel.com/signup)
+2. You have a [GitHub account](https://github.com/signup) with access to the repository
+3. You have a PostgreSQL database (we recommend [Neon](https://neon.tech/) for serverless PostgreSQL)
+4. You have MetaMask installed for wallet authentication testing
 
-1. Create a Neon Database account at neon.tech
-2. Create a new PostgreSQL database project
-3. Copy your connection string
+## Preparation Script
 
-## Testing Database Connection
+For a quick deployment preparation, you can run:
 
-To verify database connectivity before deployment:
-
-1. Use the connection string to connect to your database
-2. Run a simple test query:
-
-```sql
-CREATE TABLE IF NOT EXISTS connection_test (id SERIAL PRIMARY KEY, test_time TIMESTAMP DEFAULT NOW());
-INSERT INTO connection_test (test_time) VALUES (NOW());
-SELECT * FROM connection_test ORDER BY test_time DESC LIMIT 5;
-```
-
-If this succeeds, your database is properly configured.
-
-## Vercel Deployment Steps
-
-### 1. Prepare Your Repository
-
-The project is already configured with:
-- vercel.json - Build and routing configuration
-- vercel-build.sh - Build steps
-- server/vercel.ts - Entry point for Vercel
-- server/vercel.package.json - Dependencies for serverless function
-
-Run the preparation script:
-```
+```bash
 ./prepare-vercel-deploy.sh
 ```
 
-This script:
-- Confirms vercel-build.sh is executable
-- Checks for required files
-- Runs a test build
+This script will:
+1. Ensure vercel-build.sh is executable
+2. Create a .env file from .env.example if needed
+3. Validate the existence of required Vercel deployment files
+4. Test the build process with the Vercel-specific TypeScript configuration
 
-### 2. Connect to Vercel
+## Environment Variables
 
-1. Create an account on vercel.com
-2. Import your GitHub/GitLab repository
-3. Configure with default settings (build command is already in vercel.json)
+The following environment variables are required for the application to function properly:
 
-### 3. Configure Environment Variables
+### Required Variables
 
-Set these variables in Vercel project settings:
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgres://user:password@host:port/database` |
+| `PGHOST` | PostgreSQL host | `db.example.neon.tech` |
+| `PGPORT` | PostgreSQL port | `5432` |
+| `PGUSER` | PostgreSQL username | `databaseuser` |
+| `PGPASSWORD` | PostgreSQL password | `your-password` |
+| `PGDATABASE` | PostgreSQL database name | `pictagram` |
+| `NODE_ENV` | Environment | `production` |
+| `SESSION_SECRET` | Secret for session encryption | `your-secure-session-secret` |
+| `DEPLOYMENT_URL` | URL of your deployment | `https://pictagram.vercel.app` |
+| `WS_URL` | WebSocket URL | `wss://pictagram.vercel.app/ws` |
 
-Required:
-- DATABASE_URL: PostgreSQL connection string
-- PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE: Database configuration
-- NODE_ENV: Set to "production"
+### Frontend Variables (Required)
 
-For WebSocket and client configuration:
-- DEPLOYMENT_URL: Your Vercel URL 
-- WS_URL: WebSocket URL
-- PUBLIC_URL: Public URL
-- VITE_API_URL: API URL
-- VITE_WS_URL: WebSocket URL for client
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `VITE_API_URL` | API URL for frontend | `https://pictagram.vercel.app/api` |
+| `VITE_WS_URL` | WebSocket URL for frontend | `wss://pictagram.vercel.app/ws` |
 
-Important: For Neon database, make sure your DATABASE_URL includes `?sslmode=require` if connecting from Vercel.
+### Optional Variables
 
-### 4. Deploy
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PUBLIC_URL` | Public URL if different from DEPLOYMENT_URL | Same as DEPLOYMENT_URL |
+| `WS_PATH` | WebSocket endpoint path | `/ws` |
+| `WS_COMPRESSION` | Enable WebSocket compression | `false` |
+| `UPLOAD_DIR` | Directory for storing uploads | `uploads` |
 
-Click "Deploy" and Vercel will build and deploy your application.
+## Deployment Steps
 
-### 5. Verify Database Connection
+### 1. Database Setup
 
-After deployment:
-1. Visit `/api/health` on your deployed application
-2. This endpoint will show database connection status and errors
-3. If no connection, check your environment variables
+1. Create a PostgreSQL database on Neon or another provider
+   - For Neon, follow their [quickstart guide](https://neon.tech/docs/get-started-with-neon/quickstart)
+   - Create a database named `pictagram` (or your preferred name)
+   - Get your connection string and credentials
 
-## WebSocket Limitations with Vercel
-
-Vercel serverless functions have limitations for WebSocket connections:
-- Limited execution time
-- No persistent connections between invocations
-- Cold starts can cause connection delays
-
-For production with WebSocket requirements, consider:
-1. Using a dedicated WebSocket service (Pusher, Socket.io Cloud)
-2. Deploying a separate WebSocket server
-3. Using an alternative platform with better WebSocket support
+2. Create database tables using the project's schema:
+   ```bash
+   # This will push the schema from shared/schema.ts to your database
+   npm run db:push
+   ```
 
 ## Troubleshooting
 
-### Database Connection Issues
-- Verify DATABASE_URL is correctly formatted 
-- Check for proper SSL configuration (`?sslmode=require`)
-- Ensure database server allows connections from Vercel
-- Confirm database user has correct permissions
-- Try connecting from another client to validate credentials
+### Common Issues
 
-### API Errors
-- Check `/api/health` endpoint for detailed diagnostic information
-- Review Vercel Function logs for server-side errors
-- Verify all environment variables are set correctly
+#### Database Connection Errors
 
-### WebSocket Connection Failures
-- Check environment variables related to websocket configuration
-- Understand Vercel's limitations with persistent connections
-- Consider alternative WebSocket solutions for production
+- Verify your `DATABASE_URL` is correct and accessible from Vercel
+- Check if IP restrictions are preventing connections
+- Verify database credentials are correct
 
-### Build Failures
-- Review Vercel build logs for detailed error messages
-- Ensure the correct Node.js version (22.x) is specified
-- Check that all dependencies can be installed during build
+**Error: "relation 'users' does not exist"**
+- Run `npm run db:push` to create the database schema
 
-For more assistance, refer to Vercel's documentation.
+#### Build Errors
+
+- **TypeScript Errors**: Use the less strict `tsconfig.vercel.json` provided in the project
+- **Module Not Found**: Check your import paths and ensure all dependencies are installed
+
+#### Runtime Errors
+
+- **Blank Screen**: Check browser console for JavaScript errors
+- **API Errors**: Verify backend routes are properly defined in `server/routes.ts`
+- **WebSocket Connection Failed**: Ensure WS_URL is properly set to a secure WebSocket URL (`wss://`)
+
+## Production Recommendations
+
+1. Set up proper logging with a service like Datadog or Sentry
+2. Configure rate limiting to prevent abuse
+3. Set up monitoring for the application
+4. Consider using Vercel's serverless functions for cost optimization
+
+## Rolling Back
+
+If a deployment causes issues:
+1. Go to your Vercel project dashboard
+2. Navigate to the "Deployments" tab
+3. Find a previous working deployment and click on the three dots menu
+4. Select "Promote to Production"
+
+## Support
+
+If you continue to face deployment issues, check:
+- [Vercel documentation](https://vercel.com/docs)
+- [PostgreSQL documentation](https://www.postgresql.org/docs/)
+- [Node.js documentation](https://nodejs.org/en/docs/)
+
+For project-specific questions, refer to the README or open an issue on the GitHub repository.

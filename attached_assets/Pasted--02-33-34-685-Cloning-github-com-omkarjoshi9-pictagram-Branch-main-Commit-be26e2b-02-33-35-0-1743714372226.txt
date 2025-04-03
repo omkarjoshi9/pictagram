@@ -1,0 +1,79 @@
+[02:33:34.685] Cloning github.com/omkarjoshi9/pictagram (Branch: main, Commit: be26e2b)
+[02:33:35.026] Cloning completed: 341.000ms
+[02:33:36.302] Restored build cache from previous deployment (CWxZWxfeaRfk4FhFPuLsexTkuwSz)
+[02:33:36.389] Running build in Washington, D.C., USA (East) – iad1
+[02:33:36.876] Running "vercel build"
+[02:33:37.403] Vercel CLI 41.4.1
+[02:33:37.518] WARN! Due to `builds` existing in your configuration file, the Build and Development Settings defined in your Project Settings will not apply. Learn More: https://vercel.link/unused-build-settings
+[02:33:38.213] Installing dependencies...
+[02:33:39.799] 
+[02:33:39.799] up to date in 1s
+[02:33:39.799] 
+[02:33:39.800] 92 packages are looking for funding
+[02:33:39.800]   run `npm fund` for details
+[02:33:40.061] Using TypeScript 5.6.3 (local user-provided)
+[02:33:47.024] server/vite.ts(45,5): error TS2322: Type '{ middlewareMode: boolean; hmr: { server: Server<typeof IncomingMessage, typeof ServerResponse>; }; allowedHosts: boolean; host: string; port: number; strictPort: boolean; }' is not assignable to type 'ServerOptions'.
+[02:33:47.025]   Types of property 'allowedHosts' are incompatible.
+[02:33:47.025]     Type 'boolean' is not assignable to type 'true | string[] | undefined'.
+[02:33:47.025] 
+[02:33:51.833] server/storage.ts(95,26): error TS18047: 'db' is possibly 'null'.
+[02:33:51.834] server/storage.ts(100,26): error TS18047: 'db' is possibly 'null'.
+[02:33:51.834] server/storage.ts(105,26): error TS18047: 'db' is possibly 'null'.
+[02:33:51.835] server/storage.ts(111,14): error TS18047: 'db' is possibly 'null'.
+[02:33:51.835] server/storage.ts(115,12): error TS18047: 'db' is possibly 'null'.
+[02:33:51.835] server/storage.ts(128,26): error TS18047: 'db' is possibly 'null'.
+[02:33:51.835] server/storage.ts(133,26): error TS18047: 'db' is possibly 'null'.
+[02:33:51.836] server/storage.ts(143,26): error TS18047: 'db' is possibly 'null'.
+[02:33:51.836] server/storage.ts(148,12): error TS18047: 'db' is possibly 'null'.
+[02:33:51.836] server/storage.ts(152,12): error TS18047: 'db' is possibly 'null'.
+[02:33:51.836] server/storage.ts(156,29): error TS18047: 'db' is possibly 'null'.
+[02:33:51.837] server/storage.ts(161,26): error TS18047: 'db' is possibly 'null'.
+[02:33:51.837] server/storage.ts(172,11): error TS18047: 'db' is possibly 'null'.
+[02:33:51.837] server/storage.ts(175,11): error TS18047: 'db' is possibly 'null'.
+[02:33:51.837] server/storage.ts(178,11): error TS18047: 'db' is possibly 'null'.
+[02:33:51.838] server/storage.ts(181,11): error TS18047: 'db' is possibly 'null'.
+[02:33:51.838] server/storage.ts(184,11): error TS18047: 'db' is possibly 'null'.
+[02:33:51.838] server/storage.ts(192,26): error TS18047: 'db' is possibly 'null'.
+[02:33:51.838] server/storage.ts(201,32): error TS18047: 'db' is possibly 'null'.
+[02:33:51.839] server/storage.ts(212,12): error TS18047: 'db' is possibly 'null'.
+[02:33:51.839] server/storage.ts(221,26): error TS18047: 'db' is possibly 'null'.
+[02:33:51.839] server/storage.ts(240,36): error TS18047: 'db' is possibly 'null'.
+[02:33:51.839] server/storage.ts(254,11): error TS18047: 'db' is possibly 'null'.
+[02:33:51.840] server/storage.ts(260,29): error TS18047: 'db' is possibly 'null'.
+[02:33:51.840] server/storage.ts(277,11): error TS18047: 'db' is possibly 'null'.
+[02:33:51.840] server/storage.ts(283,11): error TS18047: 'db' is possibly 'null'.
+[02:33:51.843] server/storage.ts(297,30): error TS18047: 'db' is possibly 'null'.
+[02:33:51.843] server/storage.ts(316,40): error TS18047: 'db' is possibly 'null'.
+[02:33:51.843] server/storage.ts(330,33): error TS18047: 'db' is possibly 'null'.
+[02:33:51.843] server/storage.ts(347,11): error TS18047: 'db' is possibly 'null'.
+[02:33:51.844] server/storage.ts(361,12): error TS18047: 'db' is possibly 'null'.
+[02:33:51.844] server/storage.ts(365,32): error TS18047: 'db' is possibly 'null'.
+[02:33:51.844] server/storage.ts(370,11): error TS18047: 'db' is possibly 'null'.
+[02:33:51.844] server/storage.ts(372,29): error TS18047: 'db' is possibly 'null'.
+[02:33:51.844] server/storage.ts(378,12): error TS18047: 'db' is possibly 'null'.
+[02:33:51.845] server/storage.ts(382,30): error TS18047: 'db' is possibly 'null'.
+[02:33:51.845] server/storage.ts(387,33): error TS18047: 'db' is possibly 'null'.
+[02:33:51.845] server/storage.ts(392,11): error TS18047: 'db' is possibly 'null'.
+[02:33:51.845] server/storage.ts(396,26): error TS18047: 'db' is possibly 'null'.
+[02:33:51.845] server/storage.ts(410,34): error TS18047: 'db' is possibly 'null'.
+[02:33:51.846] server/storage.ts(416,38): error TS18047: 'db' is possibly 'null'.
+[02:33:51.846] server/storage.ts(428,12): error TS18047: 'db' is possibly 'null'.
+[02:33:51.846] server/storage.ts(437,38): error TS18047: 'db' is possibly 'null'.
+[02:33:51.846] server/storage.ts(449,37): error TS18047: 'db' is possibly 'null'.
+[02:33:51.846] server/storage.ts(464,34): error TS18047: 'db' is possibly 'null'.
+[02:33:51.847] server/storage.ts(473,34): error TS18047: 'db' is possibly 'null'.
+[02:33:51.847] server/storage.ts(481,34): error TS18047: 'db' is possibly 'null'.
+[02:33:51.847] server/storage.ts(491,36): error TS18047: 'db' is possibly 'null'.
+[02:33:51.847] server/storage.ts(499,12): error TS18047: 'db' is possibly 'null'.
+[02:33:51.847] server/storage.ts(507,12): error TS18047: 'db' is possibly 'null'.
+[02:33:51.848] server/storage.ts(515,32): error TS18047: 'db' is possibly 'null'.
+[02:33:51.848] server/storage.ts(523,29): error TS18047: 'db' is possibly 'null'.
+[02:33:51.848] 
+[02:33:59.682] client/src/pages/bookmarks.tsx(23,38): error TS2558: Expected 0 type arguments, but got 1.
+[02:33:59.682] 
+[02:34:05.906] Build Completed in /vercel/output [28s]
+[02:34:06.342] Deploying outputs...
+[02:34:13.951] 
+[02:34:14.216] Deployment completed
+[02:34:27.139] Uploading build cache [83.02 MB]...
+[02:34:28.225] Build cache uploaded: 1.086s

@@ -23,20 +23,38 @@ app.use(express.urlencoded({ extended: false }));
 // Setup health check route for Vercel
 app.get("/api/health", async (req, res) => {
   try {
+    // Check database connection
     const dbStatus = await checkDatabaseConnection();
+    
+    // Get environment info (excluding sensitive values)
+    const envInfo = {
+      NODE_ENV: process.env.NODE_ENV || 'not set',
+      hasDbUrl: !!process.env.DATABASE_URL,
+      hasPgHost: !!process.env.PGHOST,
+      hasPgPort: !!process.env.PGPORT,
+      hasPgUser: !!process.env.PGUSER,
+      hasPgDb: !!process.env.PGDATABASE,
+      // Add other non-sensitive environment checks as needed
+    };
+
+    // Send detailed health status response
     res.json({
-      status: "ok",
-      environment: process.env.NODE_ENV,
-      database: dbStatus.connected ? "connected" : "disconnected",
-      dbError: dbStatus.error,
-      timestamp: new Date().toISOString()
+      status: dbStatus.connected ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'not set',
+      database: {
+        connected: dbStatus.connected,
+        error: dbStatus.error || null
+      },
+      environment_variables: envInfo
     });
-  } catch (error) {
-    console.error("Health check error:", error);
+  } 
+  catch (error) {
+    console.error('Health check error:', error);
     res.status(500).json({
-      status: "error",
-      message: error instanceof Error ? error.message : "Unknown error",
-      timestamp: new Date().toISOString()
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error during health check'
     });
   }
 });

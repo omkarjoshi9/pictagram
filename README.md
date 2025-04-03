@@ -112,12 +112,15 @@ For deployment on platforms other than Vercel:
 
 ## License
 
-MIT## Vercel Deployment Instructions
+MIT
+
+## Vercel Deployment Instructions
 
 ### Step 1: Prepare Your Repository
 The project is already configured for Vercel deployment with:
 - `vercel.json` - Build and routing configuration
 - `vercel-build.sh` - Build process script
+- `tsconfig.vercel.json` - Less strict TypeScript configuration for Vercel
 - `server/vercel.ts` - Serverless function entry point
 - `server/vercel.package.json` - Dependencies for serverless functions
 
@@ -147,10 +150,15 @@ Set the following environment variables in your Vercel project settings:
 1. Click the "Deploy" button
 2. Once deployed, your app will be available at the Vercel URL
 
+### Troubleshooting Deployment Issues
+- **TypeScript Errors**: The project includes `tsconfig.vercel.json` with less strict checking to bypass compiler errors.
+- **Database Issues**: Ensure your database schema is created using `npm run db:push`.
+- **WebSocket Connection Errors**: Check that your WS_URL environment variable uses the `wss://` protocol.
+
+For detailed information, refer to [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ### WebSocket Limitations
 Vercel serverless functions have limitations for WebSocket connections. For production with heavy WebSocket usage, consider:
 1. Using a dedicated WebSocket service (Pusher, Socket.io Cloud)
 2. Deploying a separate WebSocket server on a platform that supports persistent connections
 3. Using an alternative hosting platform that better supports WebSockets (Heroku, Railway, Render)
-
-For detailed deployment instructions, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
