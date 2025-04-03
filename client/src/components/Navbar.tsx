@@ -153,6 +153,8 @@ const Navbar = () => {
                         key={index}
                         className="flex items-center p-3 hover:bg-secondary cursor-pointer"
                         onClick={() => {
+                          // Navigate to the user's profile when clicked
+                          window.location.href = `/profile?userId=${user.id}`;
                           setSearchValue(user.name || user.username || "");
                           setIsFocused(false);
                         }}
@@ -160,7 +162,8 @@ const Navbar = () => {
                         <div className="h-8 w-8 rounded-full overflow-hidden mr-2">
                           <img src={user.profilePic} alt="" className="h-full w-full object-cover" />
                         </div>
-                        <h3 className="text-sm font-medium">{user.name}</h3>
+                        <h3 className="text-sm font-medium">{user.name || user.username}</h3>
+                        <span className="ml-auto text-xs text-muted">View profile</span>
                       </div>
                     );
                   }
@@ -314,6 +317,8 @@ const Navbar = () => {
                     key={index}
                     className="flex items-center p-3 hover:bg-secondary cursor-pointer"
                     onClick={() => {
+                      // Navigate to the user's profile when clicked
+                      window.location.href = `/profile?userId=${user.id}`;
                       setSearchValue(user.name || user.username || "");
                       setSearchPanel(false);
                     }}
@@ -321,7 +326,8 @@ const Navbar = () => {
                     <div className="h-10 w-10 rounded-full overflow-hidden mr-3">
                       <img src={user.profilePic} alt="" className="h-full w-full object-cover" />
                     </div>
-                    <h3 className="text-sm font-medium">{user.name}</h3>
+                    <h3 className="text-sm font-medium">{user.name || user.username}</h3>
+                    <span className="ml-auto text-xs text-muted">View profile</span>
                   </div>
                 );
               }

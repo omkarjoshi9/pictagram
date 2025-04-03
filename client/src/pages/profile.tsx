@@ -18,22 +18,61 @@ export default function Profile() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("posts");
-  const { user } = useWallet();
+  const { user: currentUser } = useWallet();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Fetch posts from API for the current user
-  const { data: dbPosts = [], isLoading } = useQuery({
-    queryKey: ["posts", "user", user?.id],
+  // Get userId from URL query parameter
+  const [userId, setUserId] = useState<number | null>(null);
+  const [profileUser, setProfileUser] = useState<any>(null);
+  const [isCurrentUserProfile, setIsCurrentUserProfile] = useState(false);
+  
+  // Parse userId from URL on component mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const userIdParam = params.get('userId');
+    
+    if (userIdParam) {
+      const parsedId = parseInt(userIdParam, 10);
+      if (!isNaN(parsedId)) {
+        setUserId(parsedId);
+        setIsCurrentUserProfile(currentUser?.id === parsedId);
+      }
+    } else if (currentUser?.id) {
+      // If no userId provided, show current user's profile
+      setUserId(currentUser.id);
+      setIsCurrentUserProfile(true);
+    }
+  }, [currentUser]);
+  
+  // Fetch user data for profile
+  const { isLoading: isUserLoading } = useQuery({
+    queryKey: ["user", userId],
     queryFn: async () => {
-      if (!user?.id) return [];
-      const response = await fetch(`/api/posts?userId=${user.id}`);
+      if (!userId) return null;
+      const response = await fetch(`/api/users/${userId}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch user profile");
+      }
+      const userData = await response.json();
+      setProfileUser(userData);
+      return userData;
+    },
+    enabled: !!userId
+  });
+  
+  // Fetch posts from API for the profile user
+  const { data: dbPosts = [], isLoading } = useQuery({
+    queryKey: ["posts", "user", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const response = await fetch(`/api/posts?userId=${userId}`);
       if (!response.ok) {
         throw new Error("Failed to fetch posts");
       }
       return response.json();
     },
-    enabled: !!user?.id
+    enabled: !!userId
   });
   
   // Delete post mutation
@@ -47,7 +86,7 @@ export default function Profile() {
     },
     onSuccess: () => {
       // Invalidate query to refetch posts
-      queryClient.invalidateQueries({ queryKey: ["posts", "user", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["posts", "user", userId] });
       toast({
         title: "Success",
         description: "Post has been deleted successfully",
@@ -67,9 +106,9 @@ export default function Profile() {
   const profilePosts: PostType[] = dbPosts.map((dbPost: DbPost) => ({
     id: dbPost.id,
     user: {
-      id: user?.id || 0,
-      name: user?.username || "Loading...",
-      profilePic: user?.profilePic || "/default-avatar.svg"
+      id: profileUser?.id || 0,
+      name: profileUser?.username || "Loading...",
+      profilePic: profileUser?.profilePic || "/default-avatar.svg"
     },
     imageUrl: dbPost.imageUrl,
     caption: dbPost.caption || "",
@@ -107,7 +146,7 @@ export default function Profile() {
             <div className="flex flex-col md:flex-row items-center md:items-start md:space-x-8">
               <div className="w-32 h-32 rounded-full overflow-hidden mb-4 md:mb-0">
                 <img 
-                  src={user?.profilePic || "/default-avatar.svg"} 
+                  src={profileUser?.profilePic || "/default-avatar.svg"} 
                   alt="Profile" 
                   className="w-full h-full object-cover"
                 />
@@ -116,16 +155,18 @@ export default function Profile() {
               <div className="flex-1">
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
                   <h1 className="text-2xl font-bold mb-2 md:mb-0 text-foreground">
-                    {user?.username || "Loading..."}
+                    {profileUser?.username || "Loading..."}
                   </h1>
                   <div className="flex space-x-2">
-                    <button 
-                      className="px-4 py-1.5 bg-primary text-white rounded-full text-sm font-medium flex items-center"
-                      onClick={() => setIsEditProfileOpen(true)}
-                    >
-                      <FiEdit className="mr-1.5 h-3.5 w-3.5" />
-                      Edit Profile
-                    </button>
+                    {isCurrentUserProfile && (
+                      <button 
+                        className="px-4 py-1.5 bg-primary text-white rounded-full text-sm font-medium flex items-center"
+                        onClick={() => setIsEditProfileOpen(true)}
+                      >
+                        <FiEdit className="mr-1.5 h-3.5 w-3.5" />
+                        Edit Profile
+                      </button>
+                    )}
                     <button className="p-2 border border-border rounded-full">
                       <FaEllipsis className="h-4 w-4 text-foreground" />
                     </button>
@@ -149,12 +190,12 @@ export default function Profile() {
                 
                 <div>
                   <h2 className="font-medium text-foreground">
-                    {user?.walletAddress ? 
-                      `${user.walletAddress.substring(0, 6)}...${user.walletAddress.substring(user.walletAddress.length - 4)}` 
+                    {profileUser?.walletAddress ? 
+                      `${profileUser.walletAddress.substring(0, 6)}...${profileUser.walletAddress.substring(profileUser.walletAddress.length - 4)}` 
                       : "Loading..."}
                   </h2>
                   <p className="text-sm text-foreground mt-1">
-                    {user?.bio || "PICTagram user"}
+                    {profileUser?.bio || "PICTagram user"}
                   </p>
                 </div>
               </div>
@@ -248,12 +289,13 @@ export default function Profile() {
       
       {/* Edit Profile Modal */}
       <EditProfileModal
-        user={user}
+        user={currentUser}
         isOpen={isEditProfileOpen}
         onClose={() => setIsEditProfileOpen(false)}
         onSuccess={() => {
           // Refresh user data
-          queryClient.invalidateQueries({ queryKey: ["user"] });
+          queryClient.invalidateQueries({ queryKey: ["user", userId] });
+          queryClient.invalidateQueries({ queryKey: ["user", currentUser?.id] });
         }}
       />
     </div>
