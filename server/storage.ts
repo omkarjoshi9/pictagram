@@ -90,20 +90,56 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Helper method to check database availability
+  private async checkDb() {
+    if (!db) {
+      console.error('Database connection not available');
+      throw new Error('Database connection not available. Please check environment variables.');
+    }
+    return db;
+  }
+
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    try {
+      const dbInstance = await this.checkDb();
+      const [user] = await dbInstance.select().from(users).where(eq(users.id, id));
+      return user;
+    } catch (error) {
+      console.error('Error in getUser:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    try {
+      const dbInstance = await this.checkDb();
+      const [user] = await dbInstance.select().from(users).where(eq(users.username, username));
+      return user;
+    } catch (error) {
+      console.error('Error in getUserByUsername:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async getUserByWalletAddress(walletAddress: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.walletAddress, walletAddress));
-    return user;
+    try {
+      const dbInstance = await this.checkDb();
+      const [user] = await dbInstance.select().from(users).where(eq(users.walletAddress, walletAddress));
+      return user;
+    } catch (error) {
+      console.error('Error in getUserByWalletAddress:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async searchUsers(query: string): Promise<User[]> {
@@ -125,8 +161,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
+    try {
+      const dbInstance = await this.checkDb();
+      
+      // Add extra logging for wallet-based auth debugging
+      console.log(`Creating user with wallet address: ${insertUser.walletAddress}`);
+      
+      const [user] = await dbInstance.insert(users).values(insertUser).returning();
+      console.log(`User created successfully with ID: ${user.id}`);
+      return user;
+    } catch (error) {
+      console.error('Error in createUser:', error);
+      
+      // Handle database errors more gracefully
+      if (error instanceof Error) {
+        if (error.message.includes('duplicate key') || error.message.includes('unique constraint')) {
+          console.warn(`User with wallet address ${insertUser.walletAddress} already exists`);
+          
+          // Try to fetch the existing user
+          try {
+            const existingUser = await this.getUserByWalletAddress(insertUser.walletAddress);
+            if (existingUser) {
+              console.log(`Returning existing user with ID: ${existingUser.id}`);
+              return existingUser;
+            }
+          } catch (fetchError) {
+            console.error('Error fetching existing user:', fetchError);
+          }
+        }
+      }
+      
+      throw error;
+    }
   }
 
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
