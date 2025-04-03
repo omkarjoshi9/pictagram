@@ -129,10 +129,19 @@ export default function MessageModal({ recipientUser, isOpen, onClose }: Message
       });
     },
     onSuccess: (data) => {
-      // Add the message to local state
-      setMessages(prev => [...prev, data]);
+      // Instead of directly adding to state, check if the message already exists
+      setMessages(prev => {
+        // Check if the message already exists in our state
+        const messageExists = prev.some(m => m.id === data.id);
+        if (messageExists) {
+          return prev; // Don't add duplicate
+        }
+        return [...prev, data]; // Add only if it doesn't exist
+      });
       
       // Send WebSocket notification to recipient
+      // The recipient will get the message via WebSocket notification
+      // This WebSocket message will go to the server which will relay it to the recipient
       sendMessage({
         type: "new_message",
         senderId: currentUser?.id,
@@ -146,8 +155,10 @@ export default function MessageModal({ recipientUser, isOpen, onClose }: Message
       // Scroll to bottom
       scrollToBottom();
       
-      // Invalidate messages query
-      queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+      // Invalidate messages query to refresh the messages list but with debounce
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+      }, 500);
     },
     onError: (error: any) => {
       toast({
@@ -261,7 +272,10 @@ export default function MessageModal({ recipientUser, isOpen, onClose }: Message
             </div>
           ) : (
             <div className="space-y-4">
-              {messages.map((message) => (
+              {/* Filter out duplicate messages by ID */}
+              {messages.filter((message, index, self) => 
+                index === self.findIndex((m) => m.id === message.id)
+              ).map((message) => (
                 <div 
                   key={message.id}
                   className={`flex ${message.senderId === currentUser?.id ? 'justify-end' : 'justify-start'}`}

@@ -367,7 +367,10 @@ export default function Messages() {
                       </div>
                     ) : (
                       <div className="flex flex-col space-y-3">
-                        {messages.map((message: Message) => {
+                        {/* Filter out duplicate messages by using a dedicated function */}
+                        {messages.filter((message, index, self) => 
+                          index === self.findIndex((m) => m.id === message.id)
+                        ).map((message) => {
                           const isFromCurrentUser = message.senderId === user.id;
                           
                           return (

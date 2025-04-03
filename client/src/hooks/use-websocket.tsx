@@ -101,6 +101,31 @@ export function useWebSocket(
         try {
           const data = JSON.parse(event.data);
           console.log('WebSocket message received:', data);
+          
+          // Handle message_sent events to avoid duplicates
+          if (data.type === 'message_sent' && data.message?.id) {
+            // Check if we've already processed this message
+            const processedMessages = JSON.parse(sessionStorage.getItem('processedMessageIds') || '[]');
+            const messageId = data.message.id;
+            
+            if (processedMessages.includes(messageId)) {
+              console.log('Duplicate message_sent event detected, ignoring:', messageId);
+              // Don't update lastMessage state for duplicate confirmations
+              return;
+            }
+            
+            // Add to processed messages
+            processedMessages.push(messageId);
+            sessionStorage.setItem('processedMessageIds', JSON.stringify(processedMessages));
+            
+            // Limit the size of the processed messages array to avoid memory issues
+            if (processedMessages.length > 100) {
+              processedMessages.shift(); // Remove oldest message
+              sessionStorage.setItem('processedMessageIds', JSON.stringify(processedMessages));
+            }
+          }
+          
+          // Update last message for all message types
           setLastMessage(data);
           
           if (onMessage) {
