@@ -66,15 +66,3 @@ export const queryClient = new QueryClient({
     },
   },
 });
-
-// Make queryClient available globally for WebSocket notifications
-declare global {
-  interface Window {
-    queryClient: typeof queryClient;
-  }
-}
-
-// Set the queryClient globally
-if (typeof window !== 'undefined') {
-  window.queryClient = queryClient;
-}
