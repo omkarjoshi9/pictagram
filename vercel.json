@@ -12,6 +12,7 @@
     }
   ],
   "routes": [
+    { "src": "/api/health", "dest": "server/vercel.ts" },
     { "src": "/api/(.*)", "dest": "server/vercel.ts" },
     { "src": "/ws", "dest": "server/vercel.ts" },
     { "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|json|svg|woff|woff2|ttf|otf)$)", "dest": "/client/dist/$1" },

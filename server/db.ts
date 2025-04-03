@@ -49,7 +49,7 @@ if (pool) {
 }
 
 // Create and export the drizzle db instance if pool is available
-export const db = pool 
+export const db: ReturnType<typeof drizzle> | null = pool 
   ? drizzle({ client: pool, schema }) 
   : null;
 
