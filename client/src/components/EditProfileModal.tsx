@@ -30,9 +30,21 @@ import { FaCamera, FaSpinner, FaCheck, FaEdit } from "react-icons/fa";
 
 // Form validation schema
 const formSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters").max(30, "Username cannot exceed 30 characters"),
-  profilePic: z.string().url("Please enter a valid URL").or(z.string().length(0)).optional(),
-  bio: z.string().max(160, "Bio cannot exceed 160 characters").optional()
+  username: z.string()
+    .min(3, "Username must be at least 3 characters")
+    .max(30, "Username cannot exceed 30 characters")
+    .trim(),
+  profilePic: z.union([
+    z.string().url("Please enter a valid URL"),
+    z.string().startsWith("/", "Path must start with /"),
+    z.literal(""),
+    z.null()
+  ]).optional(),
+  bio: z.string()
+    .max(160, "Bio cannot exceed 160 characters")
+    .nullable()
+    .optional()
+    .transform(val => val === null ? "" : val) // Convert null to empty string
 });
 
 interface User {
@@ -155,15 +167,60 @@ export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: E
     mutationFn: async (values: FormValues) => {
       if (!user?.id) throw new Error("No user ID found");
       
-      const response = await apiRequest({
-        url: `/api/users/${user.id}`,
-        method: "PUT",
-        data: values
-      });
+      console.log("Making API request to update profile for user:", user.id);
+      console.log("With data:", values);
       
-      return response;
+      try {
+        // Create a custom fetch with timeout to help diagnose network issues
+        const fetchWithTimeout = async (url: string, options: RequestInit, timeout = 10000) => {
+          const controller = new AbortController();
+          const { signal } = controller;
+          
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+          }, timeout);
+          
+          try {
+            const response = await fetch(url, {
+              ...options,
+              signal
+            });
+            
+            clearTimeout(timeoutId);
+            return response;
+          } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+          }
+        };
+        
+        // Make the request with our custom fetch
+        const response = await fetchWithTimeout(`/api/users/${user.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(values),
+          credentials: "include"
+        }, 10000);
+        
+        // Check if the response is ok
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error response (${response.status}):`, errorText);
+          throw new Error(`Request failed with status ${response.status}: ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log("API response:", data);
+        return data;
+      } catch (error) {
+        console.error("API request failed:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Mutation succeeded with data:", data);
       toast({
         title: "Profile updated",
         description: "Your profile has been updated successfully",
@@ -173,8 +230,9 @@ export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: E
       onClose();
     },
     onError: (error: any) => {
+      console.error("Mutation error:", error);
       toast({
-        title: "Error",
+        title: "Error updating profile",
         description: error.message || "Failed to update profile. Please try again.",
         variant: "destructive"
       });
@@ -182,11 +240,29 @@ export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: E
   });
 
   const onSubmit = async (values: FormValues) => {
-    updateProfileMutation.mutate(values);
+    console.log("Form submitted with values:", values);
+    console.log("Form validation state:", form.formState);
+    
+    try {
+      // Explicitly await the mutation
+      await updateProfileMutation.mutateAsync(values);
+      console.log("Mutation completed successfully");
+      // Success is handled in the onSuccess callback of the mutation
+    } catch (error) {
+      console.error("Mutation failed:", error);
+      // Error is handled in the onError callback of the mutation
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog 
+      open={isOpen} 
+      onOpenChange={(open) => {
+        if (!open && !updateProfileMutation.isPending) {
+          onClose();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
@@ -289,16 +365,34 @@ export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: E
               )}
             />
             
-            <DialogFooter className="pt-4">
-              <DialogClose asChild>
-                <Button type="button" variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button 
-                type="submit" 
-                disabled={updateProfileMutation.isPending || isUploading}
-              >
-                {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
-              </Button>
+            <DialogFooter className="pt-4 flex-col space-y-2 sm:space-y-0 sm:flex-row">
+              {updateProfileMutation.isError && (
+                <p className="text-red-500 text-sm">
+                  Error: {updateProfileMutation.error?.message || "Failed to save changes"}
+                </p>
+              )}
+              <div className="flex space-x-2 w-full sm:w-auto justify-end">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={onClose}
+                  disabled={updateProfileMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateProfileMutation.isPending || isUploading}
+                  className="min-w-[120px] flex items-center justify-center"
+                >
+                  {updateProfileMutation.isPending ? (
+                    <>
+                      <FaSpinner className="animate-spin mr-2" />
+                      <span>Saving...</span>
+                    </>
+                  ) : "Save Changes"}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </Form>

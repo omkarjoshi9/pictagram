@@ -141,19 +141,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/users/:id",
     asyncHandler(async (req, res) => {
       const id = parseInt(req.params.id);
+      console.log("PUT /api/users/:id - Request received with ID:", id);
+      console.log("Request body:", req.body);
+      
       try {
+        console.log("Validating user data with schema");
         const userData = insertUserSchema.partial().parse(req.body);
+        console.log("Validated data:", userData);
+        
+        console.log("Calling storage.updateUser");
         const updatedUser = await storage.updateUser(id, userData);
+        console.log("Update result:", updatedUser);
         
         if (!updatedUser) {
+          console.log("User not found, sending 404");
           return res.status(404).json({ error: "User not found" });
         }
         
         // Don't return password in response
         const { password, ...userWithoutPassword } = updatedUser;
+        console.log("Sending successful response");
         res.json(userWithoutPassword);
       } catch (error) {
+        console.error("Error in user update:", error);
         if (error instanceof z.ZodError) {
+          console.log("Validation error:", error.errors);
           return res.status(400).json({ error: error.errors });
         }
         throw error;
