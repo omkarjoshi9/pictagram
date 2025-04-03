@@ -1,31 +1,21 @@
 {
   "version": 2,
+  "buildCommand": "./vercel-build.sh",
   "builds": [
     {
-      "src": "server/index.ts",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "client/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
+      "src": "server/vercel.ts",
+      "use": "@vercel/node",
+      "config": { 
+        "includeFiles": ["client/dist/**", "public/**"],
+        "nodeVersion": "18.x"
       }
     }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "server/index.ts"
-    },
-    {
-      "src": "/ws",
-      "dest": "server/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "client/dist/$1"
-    }
+    { "src": "/api/(.*)", "dest": "server/vercel.ts" },
+    { "src": "/ws", "dest": "server/vercel.ts" },
+    { "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|json|svg|woff|woff2|ttf|otf)$)", "dest": "/client/dist/$1" },
+    { "src": "/(.*)", "dest": "server/vercel.ts" }
   ],
   "env": {
     "NODE_ENV": "production"
