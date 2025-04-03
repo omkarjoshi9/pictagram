@@ -148,7 +148,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePost(id: number): Promise<boolean> {
+    // First, delete all related records in dependent tables
+    // Delete comments for this post
+    await db.delete(comments).where(eq(comments.postId, id));
+    
+    // Delete post categories
+    await db.delete(postCategories).where(eq(postCategories.postId, id));
+    
+    // Delete post likes
+    await db.delete(postLikes).where(eq(postLikes.postId, id));
+    
+    // Delete bookmarks
+    await db.delete(bookmarks).where(eq(bookmarks.postId, id));
+    
+    // Finally delete the post itself
     await db.delete(posts).where(eq(posts.id, id));
+    
     // Check if the post still exists after deletion attempt
     const post = await this.getPost(id);
     return post === undefined;
