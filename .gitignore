@@ -4,3 +4,15 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+.env
+.env.*
+*.log
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.cache/
+build/
+tmp/
+temp/
+.replit.cache/
