@@ -22,6 +22,9 @@ import type {
 // We'll use a standard Map to track active WebSocket connections
 // instead of extending the WebSocket interface
 
+// Map to track WebSocket connections by user ID
+const wsSessions = new Map<string, WebSocket>();
+
 import { 
   insertUserSchema, 
   insertPostSchema, 
@@ -690,6 +693,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update conversation last message time
         await storage.updateConversationLastMessageTime(messageData.conversationId);
         
+        // Get participants to send WebSocket notification
+        const participants = await storage.getConversationParticipants(messageData.conversationId);
+        
+        // Send WebSocket notification to participants
+        participants.forEach(async (participant) => {
+          // Don't send to the sender
+          if (participant.userId !== messageData.senderId) {
+            try {
+              // Get the participant's WebSocket connection
+              const recipientId = participant.userId.toString();
+              const recipientWs = wsSessions.get(recipientId);
+              
+              if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
+                recipientWs.send(JSON.stringify({
+                  type: "new_message",
+                  senderId: messageData.senderId,
+                  recipientId: participant.userId,
+                  conversationId: messageData.conversationId,
+                  message: message
+                }));
+              }
+            } catch (error) {
+              console.error("Error sending WebSocket message:", error);
+            }
+          }
+        });
+        
         res.status(201).json(message);
       } catch (error) {
         if (error instanceof z.ZodError) {
@@ -798,8 +828,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           log(`Received from client #${id}: ${JSON.stringify(data)}`, "ws");
         }
         
+        // Handle authentication message to associate WebSocket with user ID
+        if (data.type === 'authenticate' && data.userId) {
+          const userId = data.userId.toString();
+          // Store the WebSocket connection for this user
+          wsSessions.set(userId, ws);
+          log(`WebSocket client #${id} authenticated as user ${userId}`, "ws");
+          
+          // Send confirmation
+          try {
+            ws.send(JSON.stringify({ 
+              type: "authenticated", 
+              userId,
+              success: true
+            }));
+          } catch (err) {
+            console.error("Error sending authentication confirmation:", err);
+          }
+        }
         // Handle different message types
-        if (data.type === 'ping') {
+        else if (data.type === 'ping') {
           handlePing();
         } else if (data.type === "like") {
           // Broadcast like event to all clients
@@ -851,56 +899,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Handle new message event
           const { message: messageData, recipientId } = data;
           
-          // Broadcast message only to the recipient
-          wss.clients.forEach((client) => {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
-              try {
-                client.send(JSON.stringify({ 
-                  type: "new_message", 
-                  message: messageData 
-                }));
-              } catch (err) {
-                console.error("Error broadcasting message event:", err);
-              }
-            }
-          });
-          
           // Store message in database
           if (messageData && messageData.conversationId && messageData.senderId && messageData.text) {
             storage.createMessage({
               conversationId: messageData.conversationId,
               senderId: messageData.senderId,
               text: messageData.text
-            }).then((savedMessage: Message) => {
+            }).then(async (savedMessage: Message) => {
               // Update last message time
-              return storage.updateConversationLastMessageTime(messageData.conversationId);
+              await storage.updateConversationLastMessageTime(messageData.conversationId);
+              
+              // Get conversation participants to notify the recipient
+              const participants = await storage.getConversationParticipants(messageData.conversationId);
+              
+              // Find the recipient (not the sender) and send notification
+              participants.forEach(participant => {
+                // Don't send to the sender
+                if (participant.userId !== messageData.senderId) {
+                  const recipientId = participant.userId.toString();
+                  const recipientWs = wsSessions.get(recipientId);
+                  
+                  // If recipient is connected, send the message
+                  if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
+                    try {
+                      recipientWs.send(JSON.stringify({
+                        type: "new_message",
+                        message: savedMessage,
+                        conversationId: messageData.conversationId,
+                        senderId: messageData.senderId
+                      }));
+                      log(`Sent message notification to user ${recipientId}`, "ws");
+                    } catch (err) {
+                      console.error("Error sending direct message:", err);
+                    }
+                  }
+                }
+              });
+              
+              // Confirm to sender
+              try {
+                ws.send(JSON.stringify({
+                  type: "message_sent",
+                  success: true,
+                  message: savedMessage
+                }));
+              } catch (err) {
+                console.error("Error sending message confirmation:", err);
+              }
             }).catch((error: Error) => {
               console.error("Error saving message:", error);
+              // Notify sender of error
+              try {
+                ws.send(JSON.stringify({
+                  type: "message_sent",
+                  success: false,
+                  error: "Failed to save message"
+                }));
+              } catch (err) {
+                console.error("Error sending error notification:", err);
+              }
             });
+          } else {
+            // Invalid message data
+            try {
+              ws.send(JSON.stringify({
+                type: "message_sent",
+                success: false,
+                error: "Invalid message data"
+              }));
+            } catch (err) {
+              console.error("Error sending error notification:", err);
+            }
           }
         } else if (data.type === "message_read") {
           // Handle message read event
-          const { messageId } = data;
+          const { messageId, senderId } = data;
           
           if (messageId) {
-            storage.markMessageAsRead(messageId).then((updatedMessage: Message | undefined) => {
+            storage.markMessageAsRead(messageId).then(async (updatedMessage: Message | undefined) => {
               if (updatedMessage) {
-                // Broadcast message read status to all clients
-                wss.clients.forEach((client) => {
-                  if (client !== ws && client.readyState === WebSocket.OPEN) {
+                // Get the message details to notify the sender
+                const message = updatedMessage;
+                
+                // Only notify the original sender of the message
+                if (message.senderId && message.senderId !== parseInt(data.userId)) {
+                  const senderUserId = message.senderId.toString();
+                  const senderWs = wsSessions.get(senderUserId);
+                  
+                  if (senderWs && senderWs.readyState === WebSocket.OPEN) {
                     try {
-                      client.send(JSON.stringify({ 
-                        type: "message_read", 
-                        messageId 
+                      senderWs.send(JSON.stringify({
+                        type: "message_read",
+                        messageId,
+                        conversationId: message.conversationId, 
+                        readBy: data.userId
                       }));
+                      log(`Sent message read notification to user ${senderUserId}`, "ws");
                     } catch (err) {
-                      console.error("Error broadcasting message read event:", err);
+                      console.error("Error sending message read notification:", err);
                     }
                   }
-                });
+                }
+                
+                // Confirm to reader
+                try {
+                  ws.send(JSON.stringify({
+                    type: "message_read_confirmed",
+                    messageId
+                  }));
+                } catch (err) {
+                  console.error("Error sending read confirmation:", err);
+                }
               }
             }).catch((error: Error) => {
               console.error("Error marking message as read:", error);
+              // Notify user of error
+              try {
+                ws.send(JSON.stringify({
+                  type: "message_read_error",
+                  messageId,
+                  error: "Failed to mark message as read"
+                }));
+              } catch (err) {
+                console.error("Error sending error notification:", err);
+              }
             });
           }
         }
@@ -915,6 +1037,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     ws.on("close", () => {
       log("WebSocket client disconnected", "ws");
+      
+      // Remove the WebSocket from the wsSessions map
+      // Find user ID by socket reference and delete it
+      let userIdToRemove: string | null = null;
+      
+      wsSessions.forEach((socket, userId) => {
+        if (socket === ws) {
+          userIdToRemove = userId;
+        }
+      });
+      
+      if (userIdToRemove) {
+        wsSessions.delete(userIdToRemove);
+        log(`Removed user ${userIdToRemove} from WebSocket sessions`, "ws");
+      }
+      
+      // Remove client from clients map
+      clients.delete(ws);
     });
   });
 

@@ -5,8 +5,10 @@ import { Post as PostType, Comment } from "../data/PostData";
 import PostCard from "../components/PostCard";
 import PostDetailModal from "../components/PostDetailModal";
 import EditProfileModal from "../components/EditProfileModal";
+import MessageModal from "../components/MessageModal";
 import { FaCircleUser, FaChartLine, FaUserPlus, FaEllipsis } from "react-icons/fa6";
 import { FiEdit } from "react-icons/fi";
+import { FiMessageCircle } from "react-icons/fi";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "../hooks/use-wallet";
 import type { Post as DbPost } from "@shared/schema";
@@ -17,6 +19,7 @@ export default function Profile() {
   const [selectedPost, setSelectedPost] = useState<PostType | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("posts");
   const { user: currentUser } = useWallet();
   const { toast } = useToast();
@@ -158,13 +161,32 @@ export default function Profile() {
                     {profileUser?.username || "Loading..."}
                   </h1>
                   <div className="flex space-x-2">
-                    {isCurrentUserProfile && (
+                    {isCurrentUserProfile ? (
                       <button 
                         className="px-4 py-1.5 bg-primary text-white rounded-full text-sm font-medium flex items-center"
                         onClick={() => setIsEditProfileOpen(true)}
                       >
                         <FiEdit className="mr-1.5 h-3.5 w-3.5" />
                         Edit Profile
+                      </button>
+                    ) : (
+                      <button 
+                        className="px-4 py-1.5 bg-primary text-white rounded-full text-sm font-medium flex items-center"
+                        onClick={() => {
+                          if (!currentUser) {
+                            toast({
+                              title: "Please login",
+                              description: "You need to connect your wallet to send messages",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          setIsMessageModalOpen(true);
+                        }}
+                        disabled={!profileUser}
+                      >
+                        <FiMessageCircle className="mr-1.5 h-3.5 w-3.5" />
+                        Message
                       </button>
                     )}
                     <button className="p-2 border border-border rounded-full">
@@ -298,6 +320,15 @@ export default function Profile() {
           queryClient.invalidateQueries({ queryKey: ["user", currentUser?.id] });
         }}
       />
+      
+      {/* Message Modal */}
+      {profileUser && (
+        <MessageModal
+          recipientUser={profileUser}
+          isOpen={isMessageModalOpen}
+          onClose={() => setIsMessageModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
