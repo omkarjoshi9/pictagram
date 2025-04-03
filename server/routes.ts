@@ -16,7 +16,8 @@ import type {
   Conversation,
   ConversationParticipant,
   PostLike,
-  Bookmark
+  Bookmark,
+  Notification
 } from "@shared/schema";
 
 // We'll use a standard Map to track active WebSocket connections
@@ -34,7 +35,8 @@ import {
   insertConversationParticipantSchema,
   insertMessageSchema,
   insertPostLikeSchema,
-  insertBookmarkSchema
+  insertBookmarkSchema,
+  insertNotificationSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -756,6 +758,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   );
 
+  // Notification routes
+  app.get(
+    "/api/users/:userId/notifications",
+    asyncHandler(async (req, res) => {
+      const userId = parseInt(req.params.userId);
+      const notifications = await storage.getNotifications(userId);
+      res.json(notifications);
+    })
+  );
+
+  app.post(
+    "/api/notifications",
+    asyncHandler(async (req, res) => {
+      try {
+        const notificationData = insertNotificationSchema.parse(req.body);
+        const notification = await storage.createNotification(notificationData);
+        
+        // Send real-time notification via WebSocket if recipient is connected
+        const recipientWs = wsSessions.get(notification.userId.toString());
+        if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
+          const message = {
+            type: 'notification',
+            data: notification
+          };
+          recipientWs.send(JSON.stringify(message));
+        }
+        
+        res.status(201).json(notification);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ error: error.errors });
+        }
+        throw error;
+      }
+    })
+  );
+
+  app.patch(
+    "/api/notifications/:id/read",
+    asyncHandler(async (req, res) => {
+      const id = parseInt(req.params.id);
+      const notification = await storage.markNotificationAsRead(id);
+      
+      if (!notification) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      
+      res.json(notification);
+    })
+  );
+
+  app.patch(
+    "/api/users/:userId/notifications/read-all",
+    asyncHandler(async (req, res) => {
+      const userId = parseInt(req.params.userId);
+      await storage.markAllNotificationsAsRead(userId);
+      
+      // Return updated notifications for the user
+      const notifications = await storage.getNotifications(userId);
+      res.json(notifications);
+    })
+  );
+
+  app.delete(
+    "/api/notifications/:id",
+    asyncHandler(async (req, res) => {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteNotification(id);
+      
+      if (!success) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      
+      res.status(204).end();
+    })
+  );
+
   // Set up WebSocket server for real-time updates
   const httpServer = createServer(app);
   
@@ -1080,6 +1159,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   type: "message_read_error",
                   messageId,
                   error: "Failed to mark message as read"
+                }));
+              } catch (err) {
+                console.error("Error sending error notification:", err);
+              }
+            });
+          }
+        } else if (data.type === "notification_read") {
+          // Handle notification read event
+          const { notificationId } = data;
+          
+          if (notificationId) {
+            storage.markNotificationAsRead(notificationId).then((updatedNotification: Notification | undefined) => {
+              if (updatedNotification) {
+                // Confirm to the client that notification was marked as read
+                try {
+                  ws.send(JSON.stringify({
+                    type: "notification_read_confirmed",
+                    notificationId,
+                    notification: updatedNotification
+                  }));
+                  log(`Notification ${notificationId} marked as read`, "ws");
+                } catch (err) {
+                  console.error("Error sending notification read confirmation:", err);
+                }
+              }
+            }).catch((error: Error) => {
+              console.error("Error marking notification as read:", error);
+              // Notify user of error
+              try {
+                ws.send(JSON.stringify({
+                  type: "notification_read_error",
+                  notificationId,
+                  error: "Failed to mark notification as read"
+                }));
+              } catch (err) {
+                console.error("Error sending error notification:", err);
+              }
+            });
+          }
+        } else if (data.type === "notifications_read_all") {
+          // Handle mark all notifications as read event
+          const { userId } = data;
+          
+          if (userId) {
+            storage.markAllNotificationsAsRead(parseInt(userId)).then(() => {
+              // Get updated notifications to send back to client
+              storage.getNotifications(parseInt(userId)).then((notifications: Notification[]) => {
+                try {
+                  ws.send(JSON.stringify({
+                    type: "notifications_read_all_confirmed",
+                    notifications
+                  }));
+                  log(`All notifications marked as read for user ${userId}`, "ws");
+                } catch (err) {
+                  console.error("Error sending all notifications read confirmation:", err);
+                }
+              });
+            }).catch((error: Error) => {
+              console.error("Error marking all notifications as read:", error);
+              // Notify user of error
+              try {
+                ws.send(JSON.stringify({
+                  type: "notifications_read_all_error",
+                  error: "Failed to mark all notifications as read"
                 }));
               } catch (err) {
                 console.error("Error sending error notification:", err);
