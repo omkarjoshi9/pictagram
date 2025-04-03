@@ -112,45 +112,4 @@ For deployment on platforms other than Vercel:
 
 ## License
 
-MIT## Vercel Deployment Instructions
-
-### Step 1: Prepare Your Repository
-The project is already configured for Vercel deployment with:
-- `vercel.json` - Build and routing configuration
-- `vercel-build.sh` - Build process script
-- `server/vercel.ts` - Serverless function entry point
-- `server/vercel.package.json` - Dependencies for serverless functions
-
-### Step 2: Database Setup
-1. Create a PostgreSQL database on [Neon](https://neon.tech/) (recommended)
-2. Note your connection details
-
-### Step 3: Connect to Vercel
-1. Create an account on [Vercel](https://vercel.com/)
-2. Import your GitHub/GitLab repository
-3. Configure the project with default settings
-
-### Step 4: Configure Environment Variables
-Set the following environment variables in your Vercel project settings:
-
-**Required:**
-- `DATABASE_URL`: Your PostgreSQL connection string
-- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`: Individual database connection parameters
-- `NODE_ENV`: Set to `production`
-- `DEPLOYMENT_URL`: Your Vercel URL (https://your-app-name.vercel.app)
-- `WS_URL`: WebSocket URL (wss://your-app-name.vercel.app/ws)
-- `PUBLIC_URL`: Your public URL
-- `VITE_API_URL`: API URL (https://your-app-name.vercel.app/api)
-- `VITE_WS_URL`: WebSocket URL for client
-
-### Step 5: Deploy
-1. Click the "Deploy" button
-2. Once deployed, your app will be available at the Vercel URL
-
-### WebSocket Limitations
-Vercel serverless functions have limitations for WebSocket connections. For production with heavy WebSocket usage, consider:
-1. Using a dedicated WebSocket service (Pusher, Socket.io Cloud)
-2. Deploying a separate WebSocket server on a platform that supports persistent connections
-3. Using an alternative hosting platform that better supports WebSockets (Heroku, Railway, Render)
-
-For detailed deployment instructions, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+MIT
