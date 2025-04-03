@@ -123,7 +123,7 @@ export default function MessageModal({ recipientUser, isOpen, onClose }: Message
         data: {
           conversationId,
           senderId: currentUser.id,
-          content,
+          text: content, // Changed content to text to match schema
           read: false
         }
       });
@@ -278,7 +278,7 @@ export default function MessageModal({ recipientUser, isOpen, onClose }: Message
                         : 'bg-secondary'
                     }`}
                   >
-                    <p>{message.content}</p>
+                    <p>{message.content || message.text}</p>
                     <p className="text-xs opacity-70 mt-1">
                       {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
