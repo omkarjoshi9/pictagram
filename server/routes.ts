@@ -54,18 +54,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }));
   // User routes
+  // Add search users endpoint - must be before the /:id route
   app.get(
-    "/api/users/:id",
+    "/api/users/search",
     asyncHandler(async (req, res) => {
-      const id = parseInt(req.params.id);
-      const user = await storage.getUser(id);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
+      try {
+        // Get the query parameter
+        const query = req.query.q as string || '';
+        
+        // Use searchUsers directly instead of going through getUser
+        const users = await storage.searchUsers(query);
+        
+        // Don't return passwords in response
+        const usersWithoutPasswords = users.map(user => {
+          const { password, ...userWithoutPassword } = user;
+          return userWithoutPassword;
+        });
+        
+        res.json(usersWithoutPasswords);
+      } catch (error) {
+        console.error("Search error:", error);
+        res.status(500).json({ message: "Error searching users", error: String(error) });
       }
-      
-      // Don't return password in response
-      const { password, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
     })
   );
 
@@ -158,16 +168,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get(
     "/api/users/:id",
     asyncHandler(async (req, res) => {
-      const id = parseInt(req.params.id);
-      const user = await storage.getUser(id);
-      
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
+      try {
+        // Check if the id is "search", if so, handle it as a special case
+        if (req.params.id === "search") {
+          return res.status(400).json({ error: "Invalid user ID. Use /api/users/search?q=query instead." });
+        }
+        
+        const id = parseInt(req.params.id);
+        
+        // Check if id is a valid number
+        if (isNaN(id)) {
+          return res.status(400).json({ error: "Invalid user ID. ID must be a number." });
+        }
+        
+        const user = await storage.getUser(id);
+        
+        if (!user) {
+          return res.status(404).json({ error: "User not found" });
+        }
+        
+        // Don't return password in response
+        const { password, ...userWithoutPassword } = user;
+        res.json(userWithoutPassword);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        res.status(500).json({ message: "Error fetching user", error: String(error) });
       }
-      
-      // Don't return password in response
-      const { password, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
     })
   );
 

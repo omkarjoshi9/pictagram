@@ -5,34 +5,76 @@ import { MdSearch, MdClose, MdSettings } from "react-icons/md";
 import { FaAngleRight } from "react-icons/fa";
 import { FaAngleDown, FaFaceFrown } from "react-icons/fa6";
 import { RiQuestionFill } from "react-icons/ri";
-import { userData } from "@/data/UserData";
 import { motion } from "framer-motion";
 import { useClickOutside } from "@mantine/hooks";
 import { ThemeToggle } from "./ThemeToggle";
 import ConnectWallet from "./ConnectWallet";
+import { useQuery } from "@tanstack/react-query";
+
+// Define user interface
+interface User {
+  id: number;
+  username: string;
+  profilePic: string;
+  name?: string; // For backward compatibility
+  error?: string;
+}
 
 const Navbar = () => {
   const [isFocused, setIsFocused] = useState(false);
   const ref = useClickOutside(() => setIsFocused(false));
   const [searchValue, setSearchValue] = useState("");
   const [profileMenu, setProfileMenu] = useState(false);
-  const [searchedUser, setSearchedUser] = useState(userData);
+  const [searchedUser, setSearchedUser] = useState<User[]>([]);
   const [searchPanel, setSearchPanel] = useState(false);
   const [location] = useLocation();
+  const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(null);
 
+  // Query to fetch users based on search query
+  const { data: searchResults, refetch, isLoading } = useQuery({
+    queryKey: ['users', 'search', searchValue],
+    queryFn: async () => {
+      if (!searchValue.trim()) return [];
+      const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchValue)}`);
+      if (!response.ok) throw new Error('Failed to search users');
+      return response.json();
+    },
+    enabled: false, // Don't run automatically
+  });
+
+  // Update search results when they change
+  useEffect(() => {
+    if (searchResults) {
+      // Map results to ensure they have a name property from username
+      const formattedResults = searchResults.map((user: any) => ({
+        ...user,
+        // Use username as name if name is not present
+        name: user.name || user.username
+      }));
+      
+      setSearchedUser(
+        searchResults.length === 0 
+          ? [{ error: "User Not Found", id: -1, username: "", name: "", profilePic: "/default-avatar.svg" }] 
+          : formattedResults
+      );
+    }
+  }, [searchResults]);
+
+  // Debounced search function to avoid making too many requests
   const searchUsers = (value: string) => {
+    if (searchDebounce) clearTimeout(searchDebounce);
+    
     if (value === "") {
-      setSearchedUser(userData);
+      setSearchedUser([]);
       return;
     }
     
-    const searchResults = userData.filter((user) => {
-      return user.name.toLowerCase().includes(value.toLowerCase());
-    });
+    // Debounce the search to avoid too many API calls
+    const timeout = setTimeout(() => {
+      refetch();
+    }, 300);
     
-    setSearchedUser(
-      searchResults.length === 0 ? [{ error: "User Not Found", id: -1, name: "", profilePic: "" }] : searchResults
-    );
+    setSearchDebounce(timeout);
   };
 
   useEffect(() => {
@@ -79,7 +121,7 @@ const Navbar = () => {
                       setSearchValue("");
                       setIsFocused(false);
                       setTimeout(() => {
-                        setSearchedUser(userData);
+                        setSearchedUser([]);
                       }, 300);
                     }}
                   />
@@ -111,7 +153,7 @@ const Navbar = () => {
                         key={index}
                         className="flex items-center p-3 hover:bg-secondary cursor-pointer"
                         onClick={() => {
-                          setSearchValue(user.name);
+                          setSearchValue(user.name || user.username || "");
                           setIsFocused(false);
                         }}
                       >
@@ -250,7 +292,7 @@ const Navbar = () => {
                   className="h-5 w-5 text-muted cursor-pointer"
                   onClick={() => {
                     setSearchValue("");
-                    setSearchedUser(userData);
+                    setSearchedUser([]);
                   }}
                 />
               </div>
@@ -272,7 +314,7 @@ const Navbar = () => {
                     key={index}
                     className="flex items-center p-3 hover:bg-secondary cursor-pointer"
                     onClick={() => {
-                      setSearchValue(user.name);
+                      setSearchValue(user.name || user.username || "");
                       setSearchPanel(false);
                     }}
                   >

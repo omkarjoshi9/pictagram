@@ -29,13 +29,14 @@ import {
   type InsertBookmark
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray, desc, sql } from "drizzle-orm";
+import { eq, and, inArray, desc, sql, like, or } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByWalletAddress(walletAddress: string): Promise<User | undefined>;
+  searchUsers(query: string): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
 
@@ -103,6 +104,24 @@ export class DatabaseStorage implements IStorage {
   async getUserByWalletAddress(walletAddress: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.walletAddress, walletAddress));
     return user;
+  }
+
+  async searchUsers(query: string): Promise<User[]> {
+    if (!query || query.trim() === '') {
+      return db.select().from(users).limit(10);
+    }
+    
+    // Search by username or wallet address with case-insensitive pattern matching
+    return db
+      .select()
+      .from(users)
+      .where(
+        or(
+          like(users.username, `%${query}%`),
+          like(users.walletAddress, `%${query}%`)
+        )
+      )
+      .limit(20);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
