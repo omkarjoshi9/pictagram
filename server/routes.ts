@@ -899,18 +899,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Handle new message event
           const { message: messageData, recipientId } = data;
           
-          // Store message in database
-          if (messageData && messageData.conversationId && messageData.senderId && messageData.text) {
-            storage.createMessage({
-              conversationId: messageData.conversationId,
-              senderId: messageData.senderId,
-              text: messageData.text
-            }).then(async (savedMessage: Message) => {
-              // Update last message time
-              await storage.updateConversationLastMessageTime(messageData.conversationId);
-              
-              // Get conversation participants to notify the recipient
-              const participants = await storage.getConversationParticipants(messageData.conversationId);
+          // We need to determine if this is a new message or a relay of an existing message
+          // If the message already has an ID, it's an existing message being relayed through WebSocket
+          if (messageData && messageData.id) {
+            // This is an existing message (already saved), just relay it to recipient
+            log(`Relaying existing message with ID: ${messageData.id}`, "ws");
+            
+            // Get conversation participants to notify the recipient
+            storage.getConversationParticipants(messageData.conversationId).then(participants => {
               
               // Find the recipient (not the sender) and send notification
               participants.forEach(participant => {
@@ -924,11 +920,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     try {
                       recipientWs.send(JSON.stringify({
                         type: "new_message",
+                        message: messageData,
+                        conversationId: messageData.conversationId,
+                        senderId: messageData.senderId,
+                        messageId: messageData.id, // Include messageId to help with deduplication
+                      }));
+                      log(`Sent message notification to user ${recipientId} for message ${messageData.id}`, "ws");
+                    } catch (err) {
+                      console.error("Error sending direct message:", err);
+                    }
+                  }
+                }
+              });
+            }).catch(error => {
+              console.error("Error getting conversation participants:", error);
+            });
+            
+            // No need to save or confirm again since this is just a relay
+          }
+          // Store new message in database if it doesn't have an ID yet
+          else if (messageData && messageData.conversationId && messageData.senderId && messageData.text) {
+            log(`Creating new message in conversation ${messageData.conversationId}`, "ws");
+            
+            storage.createMessage({
+              conversationId: messageData.conversationId,
+              senderId: messageData.senderId,
+              text: messageData.text
+            }).then((savedMessage: Message) => {
+              // Update conversation last message time
+              storage.updateConversationLastMessageTime(messageData.conversationId).then(() => {
+                
+                // Get conversation participants to notify the recipient
+                storage.getConversationParticipants(messageData.conversationId).then(participants => {
+                  
+                  // Find the recipient (not the sender) and send notification
+                  participants.forEach(participant => {
+                // Don't send to the sender
+                if (participant.userId !== messageData.senderId) {
+                  const recipientId = participant.userId.toString();
+                  const recipientWs = wsSessions.get(recipientId);
+                  
+                  // If recipient is connected, send the message
+                  if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
+                    try {
+                      recipientWs.send(JSON.stringify({
+                        type: "new_message",
                         message: savedMessage,
                         conversationId: messageData.conversationId,
-                        senderId: messageData.senderId
+                        senderId: messageData.senderId,
+                        messageId: savedMessage.id, // Include messageId to help with deduplication
                       }));
-                      log(`Sent message notification to user ${recipientId}`, "ws");
+                      log(`Sent message notification to user ${recipientId} for new message ${savedMessage.id}`, "ws");
                     } catch (err) {
                       console.error("Error sending direct message:", err);
                     }
@@ -936,16 +978,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               });
               
-              // Confirm to sender
-              try {
-                ws.send(JSON.stringify({
-                  type: "message_sent",
-                  success: true,
-                  message: savedMessage
-                }));
-              } catch (err) {
-                console.error("Error sending message confirmation:", err);
-              }
+                  // Confirm to sender
+                  try {
+                    ws.send(JSON.stringify({
+                      type: "message_sent",
+                      success: true,
+                      message: savedMessage,
+                      messageId: savedMessage.id
+                    }));
+                  } catch (err) {
+                    console.error("Error sending message confirmation:", err);
+                  }
+                }).catch(error => {
+                  console.error("Error getting conversation participants:", error);
+                });
+              }).catch(error => {
+                console.error("Error updating conversation time:", error);
+              });
             }).catch((error: Error) => {
               console.error("Error saving message:", error);
               // Notify sender of error
@@ -976,7 +1025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const { messageId, senderId } = data;
           
           if (messageId) {
-            storage.markMessageAsRead(messageId).then(async (updatedMessage: Message | undefined) => {
+            storage.markMessageAsRead(messageId).then((updatedMessage: Message | undefined) => {
               if (updatedMessage) {
                 // Get the message details to notify the sender
                 const message = updatedMessage;

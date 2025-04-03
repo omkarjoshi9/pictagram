@@ -169,10 +169,31 @@ export default function MessageModal({ recipientUser, isOpen, onClose }: Message
     }
   });
   
+  // Track processed message IDs
+  const [processedMessageIds, setProcessedMessageIds] = useState<number[]>([]);
+  
   // Listen for incoming messages via WebSocket
   useEffect(() => {
-    if (lastMessage && lastMessage.type === "new_message") {
+    if (!lastMessage) return;
+    
+    // Handle new messages from other users
+    if (lastMessage.type === "new_message") {
       const messageData = lastMessage.message;
+      const messageId = messageData?.id;
+      
+      if (!messageId) {
+        console.log('Received message without ID, ignoring');
+        return;
+      }
+      
+      // Check if we've already processed this message ID
+      if (processedMessageIds.includes(messageId)) {
+        console.log(`Already processed message ${messageId}, ignoring duplicate`);
+        return;
+      }
+      
+      // Add to processed IDs
+      setProcessedMessageIds(prev => [...prev, messageId]);
       
       // Check for message compatibility (handling both content and text fields)
       const processedMessage = {
@@ -185,11 +206,11 @@ export default function MessageModal({ recipientUser, isOpen, onClose }: Message
       if (processedMessage.conversationId === conversationId && 
           processedMessage.senderId !== currentUser?.id) {
           
-        // Check if we already have this message
+        // Check if we already have this message in our messages array
         const messageExists = messages.some(m => m.id === processedMessage.id);
         
         if (!messageExists) {
-          console.log('Received new message via WebSocket:', processedMessage);
+          console.log('Adding new message via WebSocket:', processedMessage);
           setMessages(prev => [...prev, processedMessage]);
           scrollToBottom();
           
@@ -199,16 +220,25 @@ export default function MessageModal({ recipientUser, isOpen, onClose }: Message
             description: `${recipientUser?.username || 'Someone'} sent you a message`,
             variant: "default",
           });
+        } else {
+          console.log('Message already exists in UI, not adding again');
         }
       }
     }
     
     // For message_sent confirmations, don't add message to UI since we already did that in the mutation
-    if (lastMessage && lastMessage.type === "message_sent" && lastMessage.success) {
-      // Just refresh the messages list if needed
-      queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+    if (lastMessage.type === "message_sent" && lastMessage.success) {
+      const messageId = lastMessage.messageId || lastMessage.message?.id;
+      
+      if (messageId && !processedMessageIds.includes(messageId)) {
+        // Add to processed IDs
+        setProcessedMessageIds(prev => [...prev, messageId]);
+        
+        // Just refresh the messages list if needed
+        queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+      }
     }
-  }, [lastMessage, conversationId, messages, currentUser?.id, recipientUser?.username, toast, queryClient]);
+  }, [lastMessage, conversationId, messages, currentUser?.id, recipientUser?.username, toast, queryClient, processedMessageIds]);
   
   // Scroll to bottom when messages change
   const scrollToBottom = () => {
