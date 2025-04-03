@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useState, useRef } from "react";
 import { 
   Dialog, 
   DialogContent, 
   DialogHeader, 
   DialogTitle,
   DialogFooter,
-  DialogClose
+  DialogClose,
+  DialogDescription 
 } from "@/components/ui/dialog";
 import { 
   Form, 
@@ -13,7 +14,8 @@ import {
   FormField, 
   FormItem, 
   FormLabel, 
-  FormMessage 
+  FormMessage,
+  FormDescription
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,11 +26,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "../lib/queryClient";
 import { useToast } from "../hooks/use-toast";
+import { FaCamera, FaSpinner, FaCheck, FaEdit } from "react-icons/fa";
 
 // Form validation schema
 const formSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(30, "Username cannot exceed 30 characters"),
-  profilePic: z.string().url("Please enter a valid URL").or(z.string().length(0)),
+  profilePic: z.string().url("Please enter a valid URL").or(z.string().length(0)).optional(),
   bio: z.string().max(160, "Bio cannot exceed 160 characters").optional()
 });
 
@@ -51,6 +54,9 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: EditProfileModalProps) {
   const { toast } = useToast();
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Create form with default values from user
   const form = useForm<FormValues>({
@@ -70,8 +76,79 @@ export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: E
         profilePic: user.profilePic || "",
         bio: user.bio || ""
       });
+      setUploadedImage(null);
     }
   }, [user, form]);
+
+  // Handle file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Image file should be less than 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    // Create form data for file upload
+    const formData = new FormData();
+    formData.append('profilePicture', file);
+
+    try {
+      // Upload the file
+      const response = await fetch(`/api/users/${user.id}/profile-picture`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload profile picture');
+      }
+
+      const data = await response.json();
+      
+      // Update the form with the new profile picture URL
+      form.setValue('profilePic', data.profilePicUrl);
+      setUploadedImage(data.profilePicUrl);
+      
+      toast({
+        title: "Upload successful",
+        description: "Profile picture uploaded successfully",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload profile picture. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Trigger file input click
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
+  };
 
   // Mutation for updating profile
   const updateProfileMutation = useMutation({
@@ -80,7 +157,7 @@ export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: E
       
       const response = await apiRequest({
         url: `/api/users/${user.id}`,
-        method: "PATCH",
+        method: "PUT",
         data: values
       });
       
@@ -113,10 +190,69 @@ export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: E
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Edit Profile</DialogTitle>
+          <DialogDescription>
+            Update your profile information and picture
+          </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Profile Picture Upload */}
+            <div className="flex flex-col items-center space-y-3">
+              <div 
+                className="relative w-24 h-24 rounded-full overflow-hidden border cursor-pointer group"
+                onClick={handleImageClick}
+              >
+                <img 
+                  src={uploadedImage || (form.watch('profilePic') || '/default-avatar.svg')} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {isUploading ? (
+                    <FaSpinner className="animate-spin text-white text-xl" />
+                  ) : (
+                    <FaCamera className="text-white text-xl" />
+                  )}
+                </div>
+              </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleFileUpload}
+              />
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={handleImageClick}
+                disabled={isUploading}
+                className="flex items-center space-x-1"
+              >
+                {isUploading ? (
+                  <>
+                    <FaSpinner className="animate-spin mr-1" />
+                    <span>Uploading...</span>
+                  </>
+                ) : uploadedImage ? (
+                  <>
+                    <FaCheck className="mr-1" />
+                    <span>Change Picture</span>
+                  </>
+                ) : (
+                  <>
+                    <FaEdit className="mr-1" />
+                    <span>Upload Picture</span>
+                  </>
+                )}
+              </Button>
+              <FormDescription className="text-center text-xs">
+                Click to upload a new profile picture. Maximum size: 5MB.
+              </FormDescription>
+            </div>
+
             <FormField
               control={form.control}
               name="username"
@@ -125,20 +261,6 @@ export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: E
                   <FormLabel>Username</FormLabel>
                   <FormControl>
                     <Input placeholder="username" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="profilePic"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Profile Picture URL</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://example.com/profile.jpg" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -160,6 +282,9 @@ export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: E
                     />
                   </FormControl>
                   <FormMessage />
+                  <FormDescription>
+                    Write a short bio about yourself. Maximum 160 characters.
+                  </FormDescription>
                 </FormItem>
               )}
             />
@@ -170,7 +295,7 @@ export default function EditProfileModal({ user, isOpen, onClose, onSuccess }: E
               </DialogClose>
               <Button 
                 type="submit" 
-                disabled={updateProfileMutation.isPending}
+                disabled={updateProfileMutation.isPending || isUploading}
               >
                 {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>

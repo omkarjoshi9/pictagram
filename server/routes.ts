@@ -4,6 +4,9 @@ import { WebSocketServer, WebSocket } from "ws";
 import { log } from "./vite";
 import { storage } from "./storage";
 import { checkDatabaseConnection } from "./db";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import type { 
   User,
   Message,
@@ -40,6 +43,39 @@ function asyncHandler(
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 }
+
+// Set up file upload storage
+const profilePictureStorage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    const uploadDir = path.join(process.cwd(), 'public/uploads/profile-pictures');
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function(req, file, cb) {
+    // Create unique filename with timestamp and original extension
+    const fileExt = path.extname(file.originalname);
+    const uniqueFilename = `profile_${Date.now()}${fileExt}`;
+    cb(null, uniqueFilename);
+  }
+});
+
+// Initialize upload for profile pictures
+const uploadProfilePicture = multer({
+  storage: profilePictureStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: function(req, file, cb) {
+    // Accept only images
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed'));
+    }
+    cb(null, true);
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
@@ -118,6 +154,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: error.errors });
         }
         throw error;
+      }
+    })
+  );
+  
+  // Profile picture upload endpoint
+  app.post(
+    "/api/users/:id/profile-picture",
+    uploadProfilePicture.single('profilePicture'),
+    asyncHandler(async (req, res) => {
+      try {
+        const id = parseInt(req.params.id);
+        
+        // Check if user exists
+        const user = await storage.getUser(id);
+        if (!user) {
+          return res.status(404).json({ error: "User not found" });
+        }
+        
+        // Check if file was uploaded
+        if (!req.file) {
+          return res.status(400).json({ error: "No file uploaded" });
+        }
+        
+        // Get the relative path to the uploaded file
+        const relativePath = `/uploads/profile-pictures/${path.basename(req.file.path)}`;
+        
+        // Update user's profile picture URL
+        const updatedUser = await storage.updateUser(id, { profilePic: relativePath });
+        
+        if (!updatedUser) {
+          return res.status(500).json({ error: "Failed to update profile picture" });
+        }
+        
+        // Don't return password in response
+        const { password, ...userWithoutPassword } = updatedUser;
+        res.json({ 
+          success: true, 
+          message: "Profile picture updated successfully",
+          user: userWithoutPassword,
+          profilePicUrl: relativePath
+        });
+      } catch (error) {
+        console.error("Profile picture upload error:", error);
+        res.status(500).json({ error: "Failed to upload profile picture" });
       }
     })
   );
