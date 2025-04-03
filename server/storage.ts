@@ -640,153 +640,281 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCategoryByName(name: string): Promise<Category | undefined> {
-    const [category] = await db.select().from(categories).where(eq(categories.name, name));
-    return category;
+    try {
+      const dbInstance = await this.checkDb();
+      const [category] = await dbInstance.select().from(categories).where(eq(categories.name, name));
+      return category;
+    } catch (error) {
+      console.error('Error in getCategoryByName:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
-    const [newCategory] = await db.insert(categories).values(category).returning();
-    return newCategory;
+    try {
+      const dbInstance = await this.checkDb();
+      const [newCategory] = await dbInstance.insert(categories).values(category).returning();
+      return newCategory;
+    } catch (error) {
+      console.error('Error in createCategory:', error);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Failed to create category');
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async addPostCategory(postId: number, categoryId: number): Promise<void> {
-    await db.insert(postCategories).values({ postId, categoryId });
+    try {
+      const dbInstance = await this.checkDb();
+      await dbInstance.insert(postCategories).values({ postId, categoryId });
+    } catch (error) {
+      console.error('Error in addPostCategory:', error);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Failed to add post category');
+      }
+      throw error; // Rethrow in development
+    }
   }
 
   async getPostCategories(postId: number): Promise<Category[]> {
-    const result = await db
-      .select({
-        id: categories.id,
-        name: categories.name
-      })
-      .from(postCategories)
-      .innerJoin(categories, eq(postCategories.categoryId, categories.id))
-      .where(eq(postCategories.postId, postId));
-    
-    return result;
+    try {
+      const dbInstance = await this.checkDb();
+      const result = await dbInstance
+        .select({
+          id: categories.id,
+          name: categories.name
+        })
+        .from(postCategories)
+        .innerJoin(categories, eq(postCategories.categoryId, categories.id))
+        .where(eq(postCategories.postId, postId));
+      
+      return result;
+    } catch (error) {
+      console.error('Error in getPostCategories:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return []; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
   
   // Conversation operations
   async getConversation(id: number): Promise<Conversation | undefined> {
-    const [conversation] = await db.select().from(conversations).where(eq(conversations.id, id));
-    return conversation;
+    try {
+      const dbInstance = await this.checkDb();
+      const [conversation] = await dbInstance.select().from(conversations).where(eq(conversations.id, id));
+      return conversation;
+    } catch (error) {
+      console.error('Error in getConversation:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
   
   async getConversationsByUserId(userId: number): Promise<Conversation[]> {
-    // Find all conversations where the user is a participant
-    const participantRecords = await db
-      .select({ conversationId: conversationParticipants.conversationId })
-      .from(conversationParticipants)
-      .where(eq(conversationParticipants.userId, userId));
-    
-    if (participantRecords.length === 0) {
-      return [];
+    try {
+      const dbInstance = await this.checkDb();
+      
+      // Find all conversations where the user is a participant
+      const participantRecords = await dbInstance
+        .select({ conversationId: conversationParticipants.conversationId })
+        .from(conversationParticipants)
+        .where(eq(conversationParticipants.userId, userId));
+      
+      if (participantRecords.length === 0) {
+        return [];
+      }
+      
+      const conversationIds = participantRecords.map(record => record.conversationId);
+      
+      // Get all conversations
+      return dbInstance
+        .select()
+        .from(conversations)
+        .where(inArray(conversations.id, conversationIds))
+        .orderBy(desc(conversations.lastMessageAt));
+    } catch (error) {
+      console.error('Error in getConversationsByUserId:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return []; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
     }
-    
-    const conversationIds = participantRecords.map(record => record.conversationId);
-    
-    // Get all conversations
-    return db
-      .select()
-      .from(conversations)
-      .where(inArray(conversations.id, conversationIds))
-      .orderBy(desc(conversations.lastMessageAt));
   }
   
   async getConversationByUsers(user1Id: number, user2Id: number): Promise<Conversation | undefined> {
-    // Find conversations where both users are participants
-    const user1Conversations = await db
-      .select({ conversationId: conversationParticipants.conversationId })
-      .from(conversationParticipants)
-      .where(eq(conversationParticipants.userId, user1Id));
-    
-    if (user1Conversations.length === 0) {
-      return undefined;
+    try {
+      const dbInstance = await this.checkDb();
+      
+      // Find conversations where both users are participants
+      const user1Conversations = await dbInstance
+        .select({ conversationId: conversationParticipants.conversationId })
+        .from(conversationParticipants)
+        .where(eq(conversationParticipants.userId, user1Id));
+      
+      if (user1Conversations.length === 0) {
+        return undefined;
+      }
+      
+      const user1ConversationIds = user1Conversations.map(record => record.conversationId);
+      
+      // Find conversations where user2 is also a participant
+      const user2Participants = await dbInstance
+        .select({ conversationId: conversationParticipants.conversationId })
+        .from(conversationParticipants)
+        .where(
+          and(
+            eq(conversationParticipants.userId, user2Id),
+            inArray(conversationParticipants.conversationId, user1ConversationIds)
+          )
+        );
+      
+      if (user2Participants.length === 0) {
+        return undefined;
+      }
+      
+      // Get the first matching conversation
+      const [conversation] = await dbInstance
+        .select()
+        .from(conversations)
+        .where(eq(conversations.id, user2Participants[0].conversationId));
+      
+      return conversation;
+    } catch (error) {
+      console.error('Error in getConversationByUsers:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
     }
-    
-    const user1ConversationIds = user1Conversations.map(record => record.conversationId);
-    
-    // Find conversations where user2 is also a participant
-    const user2Participants = await db
-      .select({ conversationId: conversationParticipants.conversationId })
-      .from(conversationParticipants)
-      .where(
-        and(
-          eq(conversationParticipants.userId, user2Id),
-          inArray(conversationParticipants.conversationId, user1ConversationIds)
-        )
-      );
-    
-    if (user2Participants.length === 0) {
-      return undefined;
-    }
-    
-    // Get the first matching conversation
-    const [conversation] = await db
-      .select()
-      .from(conversations)
-      .where(eq(conversations.id, user2Participants[0].conversationId));
-    
-    return conversation;
   }
   
   async createConversation(): Promise<Conversation> {
-    const [conversation] = await db
-      .insert(conversations)
-      .values({})
-      .returning();
-    return conversation;
+    try {
+      const dbInstance = await this.checkDb();
+      const [conversation] = await dbInstance
+        .insert(conversations)
+        .values({})
+        .returning();
+      return conversation;
+    } catch (error) {
+      console.error('Error in createConversation:', error);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Failed to create conversation');
+      }
+      throw error; // Rethrow in development
+    }
   }
   
   async updateConversationLastMessageTime(id: number): Promise<Conversation | undefined> {
-    const [conversation] = await db
-      .update(conversations)
-      .set({ lastMessageAt: new Date() })
-      .where(eq(conversations.id, id))
-      .returning();
-    return conversation;
+    try {
+      const dbInstance = await this.checkDb();
+      const [conversation] = await dbInstance
+        .update(conversations)
+        .set({ lastMessageAt: new Date() })
+        .where(eq(conversations.id, id))
+        .returning();
+      return conversation;
+    } catch (error) {
+      console.error('Error in updateConversationLastMessageTime:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
   
   // Conversation participants operations
   async addConversationParticipant(participant: InsertConversationParticipant): Promise<ConversationParticipant> {
-    const [newParticipant] = await db
-      .insert(conversationParticipants)
-      .values(participant)
-      .returning();
-    return newParticipant;
+    try {
+      const dbInstance = await this.checkDb();
+      const [newParticipant] = await dbInstance
+        .insert(conversationParticipants)
+        .values(participant)
+        .returning();
+      return newParticipant;
+    } catch (error) {
+      console.error('Error in addConversationParticipant:', error);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Failed to add conversation participant');
+      }
+      throw error; // Rethrow in development
+    }
   }
   
   async getConversationParticipants(conversationId: number): Promise<ConversationParticipant[]> {
-    return db
-      .select()
-      .from(conversationParticipants)
-      .where(eq(conversationParticipants.conversationId, conversationId));
+    try {
+      const dbInstance = await this.checkDb();
+      return dbInstance
+        .select()
+        .from(conversationParticipants)
+        .where(eq(conversationParticipants.conversationId, conversationId));
+    } catch (error) {
+      console.error('Error in getConversationParticipants:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return []; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
   
   // Message operations
   async getMessagesByConversation(conversationId: number): Promise<Message[]> {
-    return db
-      .select()
-      .from(messages)
-      .where(eq(messages.conversationId, conversationId))
-      .orderBy(messages.createdAt);
+    try {
+      const dbInstance = await this.checkDb();
+      return dbInstance
+        .select()
+        .from(messages)
+        .where(eq(messages.conversationId, conversationId))
+        .orderBy(messages.createdAt);
+    } catch (error) {
+      console.error('Error in getMessagesByConversation:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return []; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
   
   async createMessage(message: InsertMessage): Promise<Message> {
-    const [newMessage] = await db
-      .insert(messages)
-      .values(message)
-      .returning();
-    return newMessage;
+    try {
+      const dbInstance = await this.checkDb();
+      const [newMessage] = await dbInstance
+        .insert(messages)
+        .values(message)
+        .returning();
+      return newMessage;
+    } catch (error) {
+      console.error('Error in createMessage:', error);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Failed to create message');
+      }
+      throw error; // Rethrow in development
+    }
   }
   
   async markMessageAsRead(id: number): Promise<Message | undefined> {
-    const [message] = await db
-      .update(messages)
-      .set({ read: true })
-      .where(eq(messages.id, id))
-      .returning();
-    return message;
+    try {
+      const dbInstance = await this.checkDb();
+      const [message] = await dbInstance
+        .update(messages)
+        .set({ read: true })
+        .where(eq(messages.id, id))
+        .returning();
+      return message;
+    } catch (error) {
+      console.error('Error in markMessageAsRead:', error);
+      if (process.env.NODE_ENV === 'production') {
+        return undefined; // Fail gracefully in production
+      }
+      throw error; // Rethrow in development
+    }
   }
 }
 
