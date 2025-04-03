@@ -6,7 +6,7 @@ This guide provides step-by-step instructions for deploying PICTagram to Vercel.
 
 - A GitHub/GitLab repository with your code
 - A PostgreSQL database (Neon DB recommended)
-- Node.js 18+ installed locally
+- Node.js 22+ installed locally
 
 ## Database Setup
 
