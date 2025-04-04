@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm run vercel-build",
+  "buildCommand": "bash ./vercel-build.sh",
   "outputDirectory": "client/dist",
   "framework": "vite",
   "regions": ["iad1"],
