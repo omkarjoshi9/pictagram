@@ -20,10 +20,10 @@ export default function Bookmarks() {
     queryFn: async () => {
       if (!user?.id) return [];
       
-      const posts = await apiRequest({
+      const posts = await apiRequest<Post[]>({
         url: `/api/users/${user.id}/bookmarks`,
         method: "GET"
-      }) as Post[];
+      });
       
       return posts;
     },

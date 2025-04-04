@@ -44,7 +44,7 @@ The following environment variables are required for the application to function
 | `DEPLOYMENT_URL` | URL of your deployment | `https://pictagram.vercel.app` |
 | `WS_URL` | WebSocket URL | `wss://pictagram.vercel.app/ws` |
 
-### Recommended Variables
+### Frontend Variables (Required)
 
 | Variable | Description | Example |
 |----------|-------------|---------|
@@ -62,7 +62,9 @@ The following environment variables are required for the application to function
 
 ## Deployment Steps
 
+### 1. Database Setup
 
+1. Create a PostgreSQL database on Neon or another provider
    - For Neon, follow their [quickstart guide](https://neon.tech/docs/get-started-with-neon/quickstart)
    - Create a database named `pictagram` (or your preferred name)
    - Get your connection string and credentials
@@ -73,55 +75,7 @@ The following environment variables are required for the application to function
    npm run db:push
    ```
 
-### 2. Vercel Setup
-
-1. Log in to Vercel and create a new project
-2. Connect your GitHub repository (https://github.com/omkarjoshi9/pictagram)
-3. Configure the following settings:
-   - Framework Preset: `Other`
-   - Build Command: `./vercel-build.sh`
-   - Output Directory: `client/dist`
-   - Install Command: `npm install`
-   - Development Command: `npm run dev`
-
-4. Add all the required environment variables listed above
-5. Deploy the application
-
-### 3. Vercel Configuration Files
-
-The project includes the following Vercel-specific configuration files:
-
-1. **vercel.json**: Defines build settings and API routes
-   ```json
-   {
-     "buildCommand": "./vercel-build.sh",
-     "outputDirectory": "client/dist",
-     "installCommand": "npm install",
-     "framework": null,
-     "rewrites": [
-       {
-         "source": "/api/(.*)",
-         "destination": "/api"
-       },
-       {
-         "source": "/(.*)",
-         "destination": "/"
-       }
-     ]
-   }
-   ```
-
-2. **vercel-build.sh**: Custom build script for Vercel deployment
-   ```bash
-   # Builds the frontend for production and prepares the API for serverless functions
-   npm run build
-   ```
-
-3. **tsconfig.vercel.json**: TypeScript configuration with less strict checking for Vercel
-   - Used to bypass some TypeScript errors during deployment
-   - Includes configuration for module resolution and type definitions
-
-
+## Troubleshooting
 
 ### Common Issues
 

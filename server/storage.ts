@@ -130,28 +130,8 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByWalletAddress(walletAddress: string): Promise<User | undefined> {
     try {
-      if (!walletAddress) {
-        console.warn('getUserByWalletAddress called with empty walletAddress');
-        return undefined;
-      }
-
       const dbInstance = await this.checkDb();
-      
-      // Normalize wallet address to lowercase for case-insensitive comparison
-      const normalizedWallet = walletAddress.toLowerCase();
-      console.log(`Looking up user with wallet address: ${normalizedWallet}`);
-      
-      const [user] = await dbInstance
-        .select()
-        .from(users)
-        .where(sql`LOWER(${users.walletAddress}) = ${normalizedWallet}`);
-      
-      if (user) {
-        console.log(`Found user with ID ${user.id} for wallet address: ${normalizedWallet}`);
-      } else {
-        console.log(`No user found for wallet address: ${normalizedWallet}`);
-      }
-      
+      const [user] = await dbInstance.select().from(users).where(eq(users.walletAddress, walletAddress));
       return user;
     } catch (error) {
       console.error('Error in getUserByWalletAddress:', error);

@@ -99,8 +99,7 @@ echo
 
 # Check environment variables
 echo "🔍 Checking essential environment variables..."
-ENV_VARS=("DATABASE_URL" "PGHOST" "PGPORT" "PGUSER" "PGPASSWORD" "PGDATABASE" "NODE_ENV" "SESSION_SECRET")
-RECOMMENDED_VARS=("DEPLOYMENT_URL" "WS_URL" "VITE_API_URL" "VITE_WS_URL")
+ENV_VARS=("DATABASE_URL" "PGHOST" "PGPORT" "PGUSER" "PGPASSWORD" "PGDATABASE" "NODE_ENV")
 MISSING_ENV=()
 
 for var in "${ENV_VARS[@]}"; do
@@ -112,25 +111,6 @@ for var in "${ENV_VARS[@]}"; do
   fi
 done
 
-echo "🔍 Checking recommended environment variables..."
-MISSING_REC_ENV=()
-
-for var in "${RECOMMENDED_VARS[@]}"; do
-  if [ -z "${!var}" ]; then
-    echo "  ⚠️ $var is not set (recommended)"
-    MISSING_REC_ENV+=("$var")
-  else
-    echo "  ✅ $var is set"
-  fi
-done
-
-if [ ${#MISSING_REC_ENV[@]} -eq 0 ]; then
-  REC_ENV_OK=true
-else
-  REC_ENV_OK=false
-fi
-
-echo
 if [ ${#MISSING_ENV[@]} -eq 0 ]; then
   ENV_OK=true
 else
@@ -166,12 +146,6 @@ else
   if ! $ENV_OK; then
     echo "  - Missing environment variables: ${MISSING_ENV[@]}"
     echo "    Copy .env.example to .env and fill in the required values"
-  fi
-  
-  if ! $REC_ENV_OK; then
-    echo "  - Missing recommended environment variables: ${MISSING_REC_ENV[@]}"
-    echo "    While these are not strictly required for development, they are recommended for production deployment"
-  fi
   fi
   
   exit 1
