@@ -9,8 +9,6 @@
     "strict": false,
     "strictNullChecks": false,
     "noImplicitAny": false,
-    "strictNullChecks": false,
-    "noImplicitAny": false,
     "lib": ["esnext", "dom", "dom.iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,
