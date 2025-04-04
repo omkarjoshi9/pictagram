@@ -299,10 +299,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "Wallet address is required" });
         }
         
+        console.log(`Authenticating wallet address: ${walletAddress}`);
+        
         // Check if user exists with this wallet address
         let user = await storage.getUserByWalletAddress(walletAddress);
         
         if (!user) {
+          console.log(`No existing user found for wallet ${walletAddress}, creating new user`);
           // If not, create a new user with random username
           const username = `user_${Date.now()}`;
           user = await storage.createUser({
@@ -311,14 +314,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
             walletAddress,
             profilePic: "/default-avatar.svg", // set default profile picture
           });
+        } else {
+          console.log(`Found existing user ${user.id} for wallet ${walletAddress}`);
         }
         
         // Don't return password in response
         const { password, ...userWithoutPassword } = user;
+        
+        // Don't set session data as we're using wallet-based auth
+        // The user ID is returned in the response and managed by the client
+        
         res.json(userWithoutPassword);
       } catch (error) {
         console.error("Wallet auth error:", error);
-        res.status(500).json({ error: "Failed to authenticate wallet" });
+        
+        // Provide more specific error messages based on the error type
+        if (error instanceof Error) {
+          if (error.message.includes('duplicate key') || error.message.includes('unique constraint')) {
+            return res.status(409).json({ 
+              error: "User with this wallet address already exists but couldn't be retrieved",
+              details: error.message
+            });
+          }
+        }
+        
+        res.status(500).json({ 
+          error: "Failed to authenticate wallet",
+          details: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
     })
   );

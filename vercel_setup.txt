@@ -1,0 +1,60 @@
+### 2. Vercel Setup
+
+1. Log in to Vercel and create a new project
+2. Connect your GitHub repository (https://github.com/omkarjoshi9/pictagram)
+3. Configure the following settings:
+   - Framework Preset: `Other`
+   - Build Command: `./vercel-build.sh`
+   - Output Directory: `client/dist`
+   - Install Command: `npm install`
+   - Development Command: `npm run dev`
+
+4. Add all the required environment variables listed above
+5. Deploy the application
+
+### 3. Vercel Configuration Files
+
+The project includes the following Vercel-specific configuration files:
+
+1. **vercel.json**: Defines build settings and API routes
+   ```json
+   {
+     "buildCommand": "./vercel-build.sh",
+     "outputDirectory": "client/dist",
+     "installCommand": "npm install",
+     "framework": null,
+     "rewrites": [
+       {
+         "source": "/api/(.*)",
+         "destination": "/api"
+       },
+       {
+         "source": "/(.*)",
+         "destination": "/"
+       }
+     ]
+   }
+   ```
+
+2. **vercel-build.sh**: Custom build script for Vercel deployment
+   ```bash
+   # Builds the frontend for production and prepares the API for serverless functions
+   npm run build
+   ```
+
+3. **tsconfig.vercel.json**: TypeScript configuration with less strict checking for Vercel
+   - Used to bypass some TypeScript errors during deployment
+   - Includes configuration for module resolution and type definitions
+
+## Troubleshooting
+
+### Common Issues
+
+#### Database Connection Errors
+
+- **Error: "relation 'users' does not exist"**
+  - Solution: Run `npm run db:push` to create all required database tables
+  - Verify that your DATABASE_URL and PostgreSQL credentials are correct
+
+- **Error: "connection refused"**
+  - Solution: Check if your database server allows connections from Vercel's IP ranges
