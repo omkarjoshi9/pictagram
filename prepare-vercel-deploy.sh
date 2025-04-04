@@ -9,6 +9,32 @@ if [ ! -x "vercel-build.sh" ]; then
   chmod +x vercel-build.sh
 fi
 
+# Create the Vite configuration patch file
+echo "📝 Creating Vite configuration patch for Vercel..."
+cat > vercel-vite-patch.js << 'PATCH'
+// This file is used to patch the Vite configuration for Vercel deployments
+const fs = require('fs');
+const path = require('path');
+
+// Path to server/vite.ts file
+const viteServerPath = path.join(__dirname, 'server', 'vite.ts');
+
+// Read the current content
+let content = fs.readFileSync(viteServerPath, 'utf-8');
+
+// Replace boolean allowedHosts with array
+content = content.replace(
+  'allowedHosts: true,',
+  "allowedHosts: ['all'],"
+);
+
+// Write the updated content back
+fs.writeFileSync(viteServerPath, content);
+
+console.log('Successfully patched server/vite.ts for Vercel deployment');
+PATCH
+echo "✅ Created vercel-vite-patch.js"
+
 # Check if .env file exists
 if [ ! -f ".env" ]; then
   echo "📝 Creating .env file from example..."
@@ -30,6 +56,8 @@ if [ ! -f "tsconfig.vercel.json" ]; then
     "noEmit": true,
     "module": "ESNext",
     "strict": false,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
     "lib": ["esnext", "dom", "dom.iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,
@@ -46,13 +74,16 @@ if [ ! -f "tsconfig.vercel.json" ]; then
 }' > tsconfig.vercel.json
   echo "✅ Created tsconfig.vercel.json with less strict type checking"
 else
-  echo "✅ tsconfig.vercel.json already exists"
+  echo "📝 Updating tsconfig.vercel.json with less strict options..."
+  # Ensure strictNullChecks is disabled
+  sed -i 's/"strict": false,/"strict": false,\n    "strictNullChecks": false,\n    "noImplicitAny": false,/' tsconfig.vercel.json
+  echo "✅ Updated tsconfig.vercel.json"
 fi
 
 # Check if the required files exist
 echo "🔍 Checking for required Vercel deployment files..."
 
-REQUIRED_FILES=("vercel.json" "vercel-build.sh" "server/vercel.ts" "server/vercel.package.json" "tsconfig.vercel.json")
+REQUIRED_FILES=("vercel.json" "vercel-build.sh" "server/vercel.ts" "server/vercel.package.json" "tsconfig.vercel.json" "vercel-vite-patch.js")
 MISSING_FILES=()
 
 for file in "${REQUIRED_FILES[@]}"; do

@@ -8,6 +8,10 @@ echo "Starting build process for Vercel deployment..."
 echo "Using Vercel-specific TypeScript configuration..."
 cp tsconfig.vercel.json tsconfig.json
 
+# Apply the Vite server configuration patch
+echo "Applying Vite server configuration patch..."
+node vercel-vite-patch.js
+
 # Build the client with less strict TypeScript checks
 echo "Building client..."
 npm run build
