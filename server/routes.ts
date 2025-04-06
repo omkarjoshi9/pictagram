@@ -70,11 +70,48 @@ const profilePictureStorage = multer.diskStorage({
   }
 });
 
+// Set up file upload storage for post images
+const postImageStorage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    // Use environment variable or default upload directory
+    const uploadDir = process.env.UPLOAD_DIR 
+      ? path.join(process.cwd(), process.env.UPLOAD_DIR, 'post-images')
+      : path.join(process.cwd(), 'public/uploads/post-images');
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function(req, file, cb) {
+    // Create unique filename with timestamp and original extension
+    const fileExt = path.extname(file.originalname);
+    const uniqueFilename = `post_${Date.now()}${fileExt}`;
+    cb(null, uniqueFilename);
+  }
+});
+
 // Initialize upload for profile pictures
 const uploadProfilePicture = multer({
   storage: profilePictureStorage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: function(req, file, cb) {
+    // Accept only images
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed'));
+    }
+    cb(null, true);
+  }
+});
+
+// Initialize upload for post images with larger size limit
+const uploadPostImage = multer({
+  storage: postImageStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit (increased from 100KB)
   },
   fileFilter: function(req, file, cb) {
     // Accept only images
@@ -350,6 +387,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(post);
+    })
+  );
+
+  // Post image upload endpoint
+  app.post(
+    "/api/posts/image",
+    uploadPostImage.single('postImage'),
+    asyncHandler(async (req, res) => {
+      try {
+        // Check if file was uploaded
+        if (!req.file) {
+          return res.status(400).json({ error: "No file uploaded" });
+        }
+        
+        // Get the relative path to the uploaded file
+        const relativePath = `/uploads/post-images/${path.basename(req.file.path)}`;
+        
+        // Return success response with the image URL
+        res.json({ 
+          success: true, 
+          message: "Image uploaded successfully",
+          imageUrl: relativePath
+        });
+      } catch (error) {
+        console.error("Post image upload error:", error);
+        res.status(500).json({ error: "Failed to upload image" });
+      }
     })
   );
 
