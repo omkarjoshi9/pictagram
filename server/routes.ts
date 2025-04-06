@@ -17,7 +17,8 @@ import type {
   Conversation,
   ConversationParticipant,
   PostLike,
-  Bookmark
+  Bookmark,
+  InsertMessage
 } from "@shared/schema";
 
 // We'll use a standard Map to track active WebSocket connections
@@ -759,7 +760,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/messages",
     asyncHandler(async (req, res) => {
       try {
-        const messageData = insertMessageSchema.parse(req.body);
+        const messageData = insertMessageSchema.parse(req.body) as {
+          conversationId: number;
+          senderId: number;
+          text: string;
+        };
         const message = await storage.createMessage(messageData);
         
         // Update conversation last message time

@@ -1,0 +1,81 @@
+[09:23:58.964] Cloning github.com/omkarjoshi9/pictagram (Branch: main, Commit: be26e2b)
+[09:23:58.976] Skipping build cache, deployment was triggered without cache.
+[09:23:59.294] Cloning completed: 330.000ms
+[09:23:59.486] Running build in Washington, D.C., USA (East) – iad1
+[09:23:59.682] Running "vercel build"
+[09:24:00.080] Vercel CLI 41.4.1
+[09:24:00.195] WARN! Due to `builds` existing in your configuration file, the Build and Development Settings defined in your Project Settings will not apply. Learn More: https://vercel.link/unused-build-settings
+[09:24:00.764] Installing dependencies...
+[09:24:05.992] npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+[09:24:06.007] npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+[09:24:11.554] 
+[09:24:11.555] added 537 packages in 11s
+[09:24:11.555] 
+[09:24:11.555] 92 packages are looking for funding
+[09:24:11.556]   run `npm fund` for details
+[09:24:11.852] Using TypeScript 5.6.3 (local user-provided)
+[09:24:18.188] server/vite.ts(45,5): error TS2322: Type '{ middlewareMode: boolean; hmr: { server: Server<typeof IncomingMessage, typeof ServerResponse>; }; allowedHosts: boolean; host: string; port: number; strictPort: boolean; }' is not assignable to type 'ServerOptions'.
+[09:24:18.188]   Types of property 'allowedHosts' are incompatible.
+[09:24:18.188]     Type 'boolean' is not assignable to type 'true | string[] | undefined'.
+[09:24:18.188] 
+[09:24:23.423] server/storage.ts(95,26): error TS18047: 'db' is possibly 'null'.
+[09:24:23.424] server/storage.ts(100,26): error TS18047: 'db' is possibly 'null'.
+[09:24:23.425] server/storage.ts(105,26): error TS18047: 'db' is possibly 'null'.
+[09:24:23.425] server/storage.ts(111,14): error TS18047: 'db' is possibly 'null'.
+[09:24:23.425] server/storage.ts(115,12): error TS18047: 'db' is possibly 'null'.
+[09:24:23.425] server/storage.ts(128,26): error TS18047: 'db' is possibly 'null'.
+[09:24:23.426] server/storage.ts(133,26): error TS18047: 'db' is possibly 'null'.
+[09:24:23.426] server/storage.ts(143,26): error TS18047: 'db' is possibly 'null'.
+[09:24:23.426] server/storage.ts(148,12): error TS18047: 'db' is possibly 'null'.
+[09:24:23.426] server/storage.ts(152,12): error TS18047: 'db' is possibly 'null'.
+[09:24:23.427] server/storage.ts(156,29): error TS18047: 'db' is possibly 'null'.
+[09:24:23.427] server/storage.ts(161,26): error TS18047: 'db' is possibly 'null'.
+[09:24:23.427] server/storage.ts(172,11): error TS18047: 'db' is possibly 'null'.
+[09:24:23.427] server/storage.ts(175,11): error TS18047: 'db' is possibly 'null'.
+[09:24:23.427] server/storage.ts(178,11): error TS18047: 'db' is possibly 'null'.
+[09:24:23.428] server/storage.ts(181,11): error TS18047: 'db' is possibly 'null'.
+[09:24:23.428] server/storage.ts(184,11): error TS18047: 'db' is possibly 'null'.
+[09:24:23.428] server/storage.ts(192,26): error TS18047: 'db' is possibly 'null'.
+[09:24:23.428] server/storage.ts(201,32): error TS18047: 'db' is possibly 'null'.
+[09:24:23.428] server/storage.ts(212,12): error TS18047: 'db' is possibly 'null'.
+[09:24:23.429] server/storage.ts(221,26): error TS18047: 'db' is possibly 'null'.
+[09:24:23.429] server/storage.ts(240,36): error TS18047: 'db' is possibly 'null'.
+[09:24:23.429] server/storage.ts(254,11): error TS18047: 'db' is possibly 'null'.
+[09:24:23.432] server/storage.ts(260,29): error TS18047: 'db' is possibly 'null'.
+[09:24:23.432] server/storage.ts(277,11): error TS18047: 'db' is possibly 'null'.
+[09:24:23.432] server/storage.ts(283,11): error TS18047: 'db' is possibly 'null'.
+[09:24:23.433] server/storage.ts(297,30): error TS18047: 'db' is possibly 'null'.
+[09:24:23.433] server/storage.ts(316,40): error TS18047: 'db' is possibly 'null'.
+[09:24:23.433] server/storage.ts(330,33): error TS18047: 'db' is possibly 'null'.
+[09:24:23.433] server/storage.ts(347,11): error TS18047: 'db' is possibly 'null'.
+[09:24:23.433] server/storage.ts(361,12): error TS18047: 'db' is possibly 'null'.
+[09:24:23.434] server/storage.ts(365,32): error TS18047: 'db' is possibly 'null'.
+[09:24:23.434] server/storage.ts(370,11): error TS18047: 'db' is possibly 'null'.
+[09:24:23.434] server/storage.ts(372,29): error TS18047: 'db' is possibly 'null'.
+[09:24:23.434] server/storage.ts(378,12): error TS18047: 'db' is possibly 'null'.
+[09:24:23.434] server/storage.ts(382,30): error TS18047: 'db' is possibly 'null'.
+[09:24:23.435] server/storage.ts(387,33): error TS18047: 'db' is possibly 'null'.
+[09:24:23.435] server/storage.ts(392,11): error TS18047: 'db' is possibly 'null'.
+[09:24:23.435] server/storage.ts(396,26): error TS18047: 'db' is possibly 'null'.
+[09:24:23.435] server/storage.ts(410,34): error TS18047: 'db' is possibly 'null'.
+[09:24:23.435] server/storage.ts(416,38): error TS18047: 'db' is possibly 'null'.
+[09:24:23.435] server/storage.ts(428,12): error TS18047: 'db' is possibly 'null'.
+[09:24:23.436] server/storage.ts(437,38): error TS18047: 'db' is possibly 'null'.
+[09:24:23.436] server/storage.ts(449,37): error TS18047: 'db' is possibly 'null'.
+[09:24:23.436] server/storage.ts(464,34): error TS18047: 'db' is possibly 'null'.
+[09:24:23.436] server/storage.ts(473,34): error TS18047: 'db' is possibly 'null'.
+[09:24:23.436] server/storage.ts(481,34): error TS18047: 'db' is possibly 'null'.
+[09:24:23.437] server/storage.ts(491,36): error TS18047: 'db' is possibly 'null'.
+[09:24:23.437] server/storage.ts(499,12): error TS18047: 'db' is possibly 'null'.
+[09:24:23.437] server/storage.ts(507,12): error TS18047: 'db' is possibly 'null'.
+[09:24:23.437] server/storage.ts(515,32): error TS18047: 'db' is possibly 'null'.
+[09:24:23.437] server/storage.ts(523,29): error TS18047: 'db' is possibly 'null'.
+[09:24:23.438] 
+[09:24:31.502] client/src/pages/bookmarks.tsx(23,38): error TS2558: Expected 0 type arguments, but got 1.
+[09:24:31.506] 
+[09:24:37.940] Build Completed in /vercel/output [37s]
+[09:24:38.451] Deploying outputs...
+[09:24:45.310] 
+[09:24:45.604] Deployment completed
+[09:24:58.054] Uploading build cache [83.02 MB]...
+[09:24:59.715] Build cache uploaded: 1.666s
