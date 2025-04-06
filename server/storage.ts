@@ -1,3 +1,4 @@
+import { drizzle } from 'drizzle-orm/neon-serverless';
 import { 
   users, 
   posts, 
@@ -96,7 +97,8 @@ export class DatabaseStorage implements IStorage {
       console.error('Database connection not available');
       throw new Error('Database connection not available. Please check environment variables.');
     }
-    return db;
+    // Type assertion to satisfy TypeScript
+    return db as ReturnType<typeof drizzle>;
   }
 
   // User operations

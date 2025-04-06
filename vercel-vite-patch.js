@@ -12,7 +12,7 @@ let content = fs.readFileSync(viteServerPath, 'utf-8');
 // The TypeScript error indicates we need to use either true, string[], or undefined
 content = content.replace(
   'allowedHosts: true,',
-  "allowedHosts: ['localhost', '.replit.dev', '.repl.co', '.replit.app', '.vercel.app'],"
+  "allowedHosts: ['all'],"
 );
 
 // Write the updated content back
