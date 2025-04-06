@@ -8,10 +8,12 @@ const viteServerPath = path.join(__dirname, 'server', 'vite.ts');
 // Read the current content
 let content = fs.readFileSync(viteServerPath, 'utf-8');
 
-// Replace boolean allowedHosts with array
+// Replace boolean allowedHosts with array or special value
+// The TypeScript error indicates we need to use either true, string[], or undefined
 content = content.replace(
   'allowedHosts: true,',
-  "allowedHosts: ['all'],"
+  // Using `true` is valid for the ServerOptions type
+  "allowedHosts: true as true,"
 );
 
 // Write the updated content back

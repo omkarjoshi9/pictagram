@@ -23,9 +23,9 @@ export default function Bookmarks() {
       const posts = await apiRequest({
         url: `/api/users/${user.id}/bookmarks`,
         method: "GET"
-      }) as Post[];
+      });
       
-      return posts;
+      return posts as Post[];
     },
     enabled: !!user?.id,
     refetchOnWindowFocus: false
